@@ -93,6 +93,7 @@ namespace app {
         QPushButton* goal_all_button_;
         QPushButton* jog_minus_button_;
         QPushButton* jog_plus_button_;
+        QPushButton* home_button_;
         QTableWidget* param_table_;
         QPushButton* reload_button_;
         QPushButton* write_all_button_;

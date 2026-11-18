@@ -8,6 +8,7 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPushButton>
 #include <QSlider>
 #include <QSpinBox>
@@ -66,10 +67,12 @@ namespace app {
         goal_button_ = new QPushButton(tr("下发目标"), command_group);
         goal_button_->setObjectName("primary");
         goal_all_button_ = new QPushButton(tr("下发到选中行"), command_group);
+        home_button_ = new QPushButton(tr("回中"), command_group);
         jog_minus_button_ = new QPushButton(tr("−1°"), command_group);
         jog_plus_button_ = new QPushButton(tr("+1°"), command_group);
         goal_row->addWidget(goal_button_);
         goal_row->addWidget(goal_all_button_);
+        goal_row->addWidget(home_button_);
         goal_row->addStretch(1);
         goal_row->addWidget(jog_minus_button_);
         goal_row->addWidget(jog_plus_button_);
@@ -144,6 +147,22 @@ namespace app {
                 emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
                                    speed_spin_->value(), false);
             }
+        });
+        // 目标位置回车直接下发（仅回车触发，失焦不触发）。
+        connect(ticks_spin_->findChild<QLineEdit*>(), &QLineEdit::returnPressed, this, [this] {
+            if (hasSubject()) {
+                emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
+                                   speed_spin_->value(), false);
+            }
+        });
+        // 回中：目标设为编码器中位并直接下发。
+        connect(home_button_, &QPushButton::clicked, this, [this] {
+            if (!hasSubject()) {
+                return;
+            }
+            ticks_spin_->setValue(static_cast<int>(subject_config_.center_ticks));
+            emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
+                               speed_spin_->value(), false);
         });
 
         // 参数值点击进入编辑；换行/点击别处即提交，避免悬停滚轮误触。
