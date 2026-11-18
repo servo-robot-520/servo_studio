@@ -27,6 +27,8 @@ namespace servo_backends {
     public:
         ~FeetechScsDriver() override;
 
+        void set_trace_hook(TraceHook hook) override;
+
         Result open(const servo_core::BusConfig& config) override;
         void close() override;
         [[nodiscard]] bool is_open() const override;
@@ -64,6 +66,7 @@ namespace servo_backends {
         feetech_servo_ros2_control::ScsSerialPort port_;
         std::unique_ptr<feetech_servo_ros2_control::ScsProtocol> protocol_;
         std::map<ServoId, ServoConfig> configs_;
+        TraceHook trace_hook_;
     };
 
 } // namespace servo_backends

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -16,7 +17,16 @@ namespace servo_core {
     /// 错误信息一律使用英文。
     class IServoDriver {
     public:
+        /// @brief 帧级调试钩子：方向（"tx"/"rx"）+ 原始字节。
+        using TraceHook =
+            std::function<void(const char* direction, const std::vector<uint8_t>& frame)>;
+
         virtual ~IServoDriver() = default;
+
+        /// @brief 设置帧级调试钩子（可为空表示清除）；应在 start 前安装。
+        virtual void set_trace_hook(TraceHook hook) {
+            (void)hook;
+        }
 
         /// @brief 打开总线。
         virtual Result open(const BusConfig& config) = 0;

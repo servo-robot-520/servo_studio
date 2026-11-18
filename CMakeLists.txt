@@ -63,6 +63,8 @@ add_executable(servo_studio
         src/app/panels/device_tree.cpp
         src/app/panels/status_table.cpp
         src/app/panels/chart_panel.cpp
+        src/app/panels/inspector_panel.cpp
+        src/app/panels/log_panel.cpp
         src/app/resources/app.qrc)
 target_include_directories(servo_studio PRIVATE src)
 target_link_libraries(servo_studio PRIVATE servo_backend_feetech_scs Qt6::Widgets Qt6::Charts)

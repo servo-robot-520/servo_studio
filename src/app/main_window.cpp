@@ -1,6 +1,7 @@
 #include "app/main_window.hpp"
 
 #include <QCloseEvent>
+#include <QMessageBox>
 #include <QSplitter>
 #include <QStatusBar>
 #include <QVBoxLayout>
@@ -9,6 +10,8 @@
 #include "app/panels/chart_panel.hpp"
 #include "app/panels/connection_panel.hpp"
 #include "app/panels/device_tree.hpp"
+#include "app/panels/inspector_panel.hpp"
+#include "app/panels/log_panel.hpp"
 #include "app/panels/status_table.hpp"
 #include "servo_core/registry.hpp"
 
@@ -17,7 +20,7 @@ namespace app {
     MainWindow::MainWindow(QWidget* parent) :
         QMainWindow(parent) {
         setWindowTitle(tr("servo_studio"));
-        resize(1200, 720);
+        resize(1440, 820);
 
         auto* central = new QWidget(this);
         auto* layout = new QVBoxLayout(central);
@@ -27,12 +30,12 @@ namespace app {
         connection_panel_ = new ConnectionPanel(central);
         layout->addWidget(connection_panel_);
 
-        auto* splitter = new QSplitter(Qt::Horizontal, central);
-        device_tree_ = new DeviceTree(splitter);
-        device_tree_->setMinimumWidth(320);
+        // 三栏：设备树 | 监控区（曲线/状态表）| 检查器。
+        auto* columns = new QSplitter(Qt::Horizontal, central);
+        device_tree_ = new DeviceTree(columns);
+        device_tree_->setMinimumWidth(300);
 
-        // 监控区：曲线在上、状态表在下。
-        auto* monitor = new QSplitter(Qt::Vertical, splitter);
+        auto* monitor = new QSplitter(Qt::Vertical, columns);
         chart_panel_ = new ChartPanel(monitor);
         status_table_ = new StatusTable(monitor);
         monitor->addWidget(chart_panel_);
@@ -40,11 +43,25 @@ namespace app {
         monitor->setStretchFactor(0, 2);
         monitor->setStretchFactor(1, 1);
 
-        splitter->addWidget(device_tree_);
-        splitter->addWidget(monitor);
-        splitter->setStretchFactor(0, 0);
-        splitter->setStretchFactor(1, 1);
-        layout->addWidget(splitter, 1);
+        inspector_panel_ = new InspectorPanel(columns);
+        inspector_panel_->setMinimumWidth(420);
+
+        columns->addWidget(device_tree_);
+        columns->addWidget(monitor);
+        columns->addWidget(inspector_panel_);
+        columns->setStretchFactor(0, 0);
+        columns->setStretchFactor(1, 1);
+        columns->setStretchFactor(2, 0);
+
+        // 底部日志条。
+        auto* outer = new QSplitter(Qt::Vertical, central);
+        log_panel_ = new LogPanel(outer);
+        log_panel_->setMinimumHeight(140);
+        outer->addWidget(columns);
+        outer->addWidget(log_panel_);
+        outer->setStretchFactor(0, 1);
+        outer->setStretchFactor(1, 0);
+        layout->addWidget(outer, 1);
 
         setCentralWidget(central);
         statusBar()->showMessage(tr("就绪"));
@@ -59,6 +76,21 @@ namespace app {
                 &MainWindow::onServoSelected);
         connect(status_table_, &QTableWidget::itemSelectionChanged, this,
                 &MainWindow::onServoSelected);
+
+        connect(inspector_panel_, &InspectorPanel::goalRequested, this, &MainWindow::handleGoal);
+        connect(inspector_panel_, &InspectorPanel::torqueRequested, this, &MainWindow::handleTorque);
+        connect(inspector_panel_, &InspectorPanel::paramWriteRequested, this,
+                &MainWindow::handleParamWrite);
+        connect(inspector_panel_, &InspectorPanel::paramWriteAllRequested, this,
+                &MainWindow::handleParamWriteAll);
+        connect(inspector_panel_, &InspectorPanel::servoConfigRequested, this,
+                &MainWindow::handleServoConfig);
+        connect(inspector_panel_, &InspectorPanel::reloadParametersRequested, this,
+                [this](const QString& port, const servo_core::ServoId id) {
+                    if (const auto it = buses_.find(port); it != buses_.end()) {
+                        it->second.bridge->readParameters(port, id);
+                    }
+                });
     }
 
     MainWindow::~MainWindow() {
@@ -75,15 +107,25 @@ namespace app {
     }
 
     void MainWindow::log(const QString& level, const QString& message) {
-        // 日志输出英文原文到 stderr，界面状态栏显示简要信息。
+        // 日志输出英文原文到 stderr 与日志面板，状态栏显示简要信息。
         std::fprintf(stderr, "[%s] %s\n", level.toStdString().c_str(),
                      message.toStdString().c_str());
-        if (level == "error" || level == "warn") {
-            statusBar()->showMessage(message, 8000);
+        log_panel_->appendLog(level, message);
+        statusBar()->showMessage(message, (level == "error" || level == "warn") ? 8000 : 4000);
+    }
+
+    servo_core::ServoConfig MainWindow::configFor(const QString& port,
+                                                  const servo_core::ServoId id) const {
+        const auto port_it = configs_.find(port);
+        if (port_it != configs_.end()) {
+            const auto id_it = port_it->second.find(id);
+            if (id_it != port_it->second.end()) {
+                return id_it->second;
+            }
         }
-        else {
-            statusBar()->showMessage(message, 4000);
-        }
+        servo_core::ServoConfig config;
+        config.id = id;
+        return config;
     }
 
     void MainWindow::connectBus(const QString& port, const int baudRate, const int timeoutMs) {
@@ -100,16 +142,25 @@ namespace app {
             log("error", "Driver 'feetech_scs' is not registered");
             return;
         }
+        auto* bridge = new SessionBridge(this);
+        // 帧级跟踪在启动前安装到驱动，避免与工作线程竞态。
+        driver->set_trace_hook([bridge](const char* direction, const std::vector<uint8_t>& frame) {
+            bridge->traceFrame(direction, frame);
+        });
+
         servo_core::BusConfig config;
         config.port = port.toStdString();
         config.baud_rate = baudRate;
         config.response_timeout_ms = timeoutMs;
 
         auto session = std::make_shared<servo_core::BusSession>(std::move(driver), config);
-        auto* bridge = new SessionBridge(this);
         bridge->attach(session);
 
         connect(bridge, &SessionBridge::logReceived, this, &MainWindow::log);
+        connect(bridge, &SessionBridge::frameTraced, this,
+                [this](const QString& bus_port, const QString& direction, const QByteArray& frame) {
+                    log_panel_->appendFrame(bus_port, direction, frame);
+                });
         connect(bridge, &SessionBridge::statesReceived, this,
                 [this](const QString& bus_port, const QVector<servo_core::ServoState>& states) {
                     status_table_->updateStates(bus_port, states);
@@ -118,9 +169,19 @@ namespace app {
         connect(bridge, &SessionBridge::scanFinished, this,
                 [this](const QString& bus_port, const QVector<servo_core::ServoInfo>& infos) {
                     device_tree_->setServos(bus_port, infos);
+                    bus_infos_[bus_port] = infos;
+                    for (const auto& info : infos) {
+                        configs_[bus_port].try_emplace(info.id, configFor(bus_port, info.id));
+                    }
                     applyPolling(bus_port);
                     statusBar()->showMessage(tr("%1：发现 %2 个舵机").arg(bus_port).arg(infos.size()),
                                              6000);
+                });
+        connect(bridge, &SessionBridge::parametersReceived, this,
+                [this](const QString& bus_port, const int id,
+                       const QVector<ParamValue>& values) {
+                    inspector_panel_->setParameters(bus_port, id, values);
+                    log("info", "Parameters loaded for servo " + QString::number(id));
                 });
         connect(bridge, &SessionBridge::commandFinished, this,
                 [this](const bool success, const QString& error) {
@@ -203,9 +264,202 @@ namespace app {
     void MainWindow::onServoSelected() {
         QString port;
         servo_core::ServoId id = 0;
-        if (device_tree_->selectedServo(&port, &id) || status_table_->selectedServo(&port, &id)) {
-            chart_panel_->setSubject(port, id);
+        if (!device_tree_->selectedServo(&port, &id) && !status_table_->selectedServo(&port, &id)) {
+            return;
         }
+        has_subject_ = true;
+        subject_port_ = port;
+        subject_id_ = id;
+
+        QString model = "unknown";
+        for (const auto& info : bus_infos_[port]) {
+            if (info.id == id) {
+                model = QString::fromStdString(info.model);
+                break;
+            }
+        }
+        inspector_panel_->setSubject(port, id, model, configFor(port, id));
+        chart_panel_->setSubject(port, id);
+        if (const auto it = buses_.find(port); it != buses_.end()) {
+            it->second.bridge->readParameters(port, id);
+        }
+    }
+
+    void MainWindow::handleGoal(const QString& port, const int ticks, const int timeMs,
+                                const int speed, const bool toSelection) {
+        const auto it = buses_.find(port);
+        if (it == buses_.end()) {
+            return;
+        }
+
+        // 目标集合：批量时取状态表选中行（同总线）；否则当前监控对象。
+        std::vector<servo_core::ServoId> ids;
+        if (toSelection) {
+            for (const auto& [row_port, id] : status_table_->selectedServos()) {
+                if (row_port == port) {
+                    ids.push_back(id);
+                }
+            }
+        }
+        if (ids.empty() && has_subject_ && subject_port_ == port) {
+            ids.push_back(subject_id_);
+        }
+        if (ids.empty()) {
+            log("warn", "No target servo selected");
+            return;
+        }
+
+        if (ids.size() == 1) {
+            const auto id = ids.front();
+            it->second.bridge->submit([id, ticks, timeMs, speed](servo_core::IServoDriver& driver) {
+                return driver.write_goal(id, ticks, timeMs, speed);
+            });
+            statusBar()->showMessage(tr("已下发目标：%1 → %2 tick").arg(id).arg(ticks), 4000);
+        }
+        else {
+            const std::vector<int> positions(ids.size(), ticks);
+            const std::vector<int> speeds(ids.size(), speed);
+            it->second.bridge->submit(
+                [ids, positions, timeMs, speeds](servo_core::IServoDriver& driver) {
+                    return driver.sync_write_goals(ids, positions, timeMs, speeds);
+                });
+            statusBar()->showMessage(tr("已同步下发 %1 个目标 → %2 tick").arg(ids.size()).arg(ticks),
+                                     4000);
+        }
+    }
+
+    void MainWindow::handleTorque(const QString& port, const servo_core::ServoId id,
+                                  const bool enabled) {
+        const auto it = buses_.find(port);
+        if (it == buses_.end()) {
+            return;
+        }
+        it->second.bridge->submit([id, enabled](servo_core::IServoDriver& driver) {
+            return driver.set_torque(id, enabled);
+        });
+        log("info", QStringLiteral("Torque %1 on servo %2")
+                        .arg(enabled ? "enabled" : "disabled")
+                        .arg(id));
+    }
+
+    void MainWindow::handleParamWrite(const QString& port, const servo_core::ServoId id,
+                                      const QString& key, const int value,
+                                      const QString& valueText) {
+        const auto it = buses_.find(port);
+        if (it == buses_.end()) {
+            return;
+        }
+
+        // ID / 波特率专属流程：确认 → 写入 → 恢复访问（重扫/重连）。
+        if (key == "id") {
+            if (QMessageBox::warning(
+                    this, tr("修改 ID"),
+                    tr("修改 ID 后舵机将不再响应旧 ID，写错需要重新扫描恢复。\n确定写入 ID=%1 ？")
+                        .arg(value),
+                    QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
+                return;
+            }
+            it->second.bridge->submit(
+                [id, value](servo_core::IServoDriver& driver) {
+                    return driver.write_param(id, "id", value);
+                },
+                [this, port](const bool ok, const QString& error) {
+                    QMetaObject::invokeMethod(
+                        this,
+                        [this, port, ok, error] {
+                            if (!ok) {
+                                log("error", error);
+                                return;
+                            }
+                            log("info", "ID changed, rescanning " + port);
+                            scanBus(port);
+                        },
+                        Qt::QueuedConnection);
+                });
+            return;
+        }
+        if (key == "baud_rate") {
+            const int new_baud = valueText.toInt();
+            if (QMessageBox::warning(
+                    this, tr("修改波特率"),
+                    tr("修改波特率后将以 %1 重新连接总线。\n确定写入？").arg(new_baud),
+                    QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
+                return;
+            }
+            it->second.bridge->submit(
+                [id, value](servo_core::IServoDriver& driver) {
+                    return driver.write_param(id, "baud_rate", value);
+                },
+                [this, port, new_baud](const bool ok, const QString& error) {
+                    QMetaObject::invokeMethod(
+                        this,
+                        [this, port, new_baud, ok, error] {
+                            if (!ok) {
+                                log("error", error);
+                                return;
+                            }
+                            log("info", "Baud rate changed, reconnecting " + port);
+                            const int timeout =
+                                buses_.count(port) != 0
+                                    ? buses_[port].session->config().response_timeout_ms
+                                    : 10;
+                            disconnectBus(port);
+                            connectBus(port, new_baud, timeout);
+                            scanBus(port);
+                        },
+                        Qt::QueuedConnection);
+                });
+            return;
+        }
+
+        it->second.bridge->submit([id, key, value](servo_core::IServoDriver& driver) {
+            return driver.write_param(id, key.toStdString(), value);
+        });
+    }
+
+    void MainWindow::handleParamWriteAll(const QString& port, const QString& key, const int value) {
+        const auto it = buses_.find(port);
+        if (it == buses_.end()) {
+            return;
+        }
+        if (QMessageBox::question(
+                this, tr("批量写入参数"),
+                tr("将 %1=%2 写入 %3 的全部舵机？").arg(key).arg(value).arg(port),
+                QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
+            return;
+        }
+        const auto ids = device_tree_->servoIds(port);
+        it->second.bridge->submit([ids, key, value](servo_core::IServoDriver& driver) {
+            for (const auto id : ids) {
+                if (const auto result = driver.write_param(id, key.toStdString(), value); !result) {
+                    return result;
+                }
+            }
+            return servo_core::Result::success();
+        });
+    }
+
+    void MainWindow::handleServoConfig(const QString& port, const servo_core::ServoId id,
+                                       const double rangeDeg, const double minTicks,
+                                       const double maxTicks) {
+        servo_core::ServoConfig config = configFor(port, id);
+        config.range_deg = rangeDeg;
+        config.min_ticks = minTicks;
+        config.max_ticks = maxTicks;
+        configs_[port][id] = config;
+
+        const auto it = buses_.find(port);
+        if (it != buses_.end()) {
+            it->second.bridge->submit([config](servo_core::IServoDriver& driver) {
+                return driver.set_servo_config(config);
+            });
+        }
+        inspector_panel_->updateConfig(config);
+        log("info", QStringLiteral("Servo %1 config updated: range=%2 deg, clamp=[%3, %4]")
+                        .arg(id)
+                        .arg(rangeDeg)
+                        .arg(minTicks)
+                        .arg(maxTicks));
     }
 
 } // namespace app

@@ -142,13 +142,19 @@ namespace servo_backends {
             ASSERT_EQ(parameters.size(), 26u);
             // 描述表含 ID 与波特率，供 GUI 参数编辑器渲染。
             bool has_id = false;
-            bool has_baud = false;
+            const servo_core::ParamDescriptor* baud = nullptr;
             for (const auto& parameter : parameters) {
                 has_id |= parameter.key == "id";
-                has_baud |= parameter.key == "baud_rate";
+                if (parameter.key == "baud_rate") {
+                    baud = &parameter;
+                }
             }
             EXPECT_TRUE(has_id);
-            EXPECT_TRUE(has_baud);
+            // 波特率为索引参数：值 = choices 下标，条目为实际波特率。
+            ASSERT_NE(baud, nullptr);
+            ASSERT_EQ(baud->choices.size(), 8u);
+            EXPECT_EQ(baud->choices.front(), 1000000);
+            EXPECT_EQ(baud->choices.back(), 38400);
         }
 
     } // namespace

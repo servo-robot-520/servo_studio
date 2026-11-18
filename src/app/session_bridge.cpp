@@ -56,15 +56,55 @@ namespace app {
         }
     }
 
-    void SessionBridge::submit(std::function<servo_core::Result(servo_core::IServoDriver&)> command) {
+    void SessionBridge::submit(std::function<servo_core::Result(servo_core::IServoDriver&)> command,
+                               std::function<void(bool, const QString&)> done) {
         if (!session_) {
             return;
         }
         session_->submit(std::move(command),
-                         [this](const servo_core::Result& result) {
+                         [this, done = std::move(done)](const servo_core::Result& result) {
                              emit commandFinished(static_cast<bool>(result),
                                                   QString::fromStdString(result.error()));
+                             if (done) {
+                                 done(static_cast<bool>(result),
+                                      QString::fromStdString(result.error()));
+                             }
                          });
+    }
+
+    void SessionBridge::readParameters(const QString& port, const servo_core::ServoId id) {
+        if (!session_) {
+            return;
+        }
+        auto values = std::make_shared<QVector<ParamValue>>();
+        session_->submit(
+            [id, values](servo_core::IServoDriver& driver) {
+                for (const auto& descriptor : driver.parameters()) {
+                    ParamValue entry;
+                    entry.key = QString::fromStdString(descriptor.key);
+                    entry.label = QString::fromStdString(descriptor.label);
+                    entry.unit = QString::fromStdString(descriptor.unit);
+                    entry.min = descriptor.min;
+                    entry.max = descriptor.max;
+                    entry.eeprom = descriptor.access == servo_core::ParamAccess::kEeprom;
+                    entry.choices = QVector<int>(descriptor.choices.begin(), descriptor.choices.end());
+                    if (const auto value = driver.read_param(id, descriptor.key)) {
+                        entry.value = value.value();
+                        entry.valid = true;
+                    }
+                    values->push_back(entry);
+                }
+                return servo_core::Result::success();
+            },
+            [this, port, id, values](const servo_core::Result&) {
+                emit parametersReceived(port, id, *values);
+            });
+    }
+
+    void SessionBridge::traceFrame(const char* direction, const std::vector<uint8_t>& frame) {
+        emit frameTraced(port_, QString::fromLatin1(direction),
+                         QByteArray(reinterpret_cast<const char*>(frame.data()),
+                                    static_cast<int>(frame.size())));
     }
 
     void SessionBridge::stop() {

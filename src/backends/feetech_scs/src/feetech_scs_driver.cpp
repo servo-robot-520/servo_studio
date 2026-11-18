@@ -14,18 +14,6 @@ namespace servo_backends {
         namespace scs = feetech_servo_ros2_control;
         namespace core = servo_core;
 
-        constexpr double kRadiansToDegrees = 57.295779513082320877;
-
-        // tick ↔ 度换算复用驱动侧实现，保证中位/量程只有一份定义。
-        double tick_to_degrees(const uint16_t tick, const double range_deg) {
-            return scs::tick_to_radians(tick, range_deg) * kRadiansToDegrees;
-        }
-
-        double ticks_s_to_deg_s(const int ticks_s, const double range_deg) {
-            return static_cast<double>(ticks_s) * scs::radians_per_tick(range_deg) *
-                kRadiansToDegrees;
-        }
-
         int clamp_ticks(const int ticks, const ServoConfig& config) {
             const int lower = std::max(0, static_cast<int>(std::lround(config.min_ticks)));
             const int upper = std::min(static_cast<int>(scs::kPositionTicks) - 1,
@@ -63,7 +51,28 @@ namespace servo_backends {
         }
         protocol_ = std::make_unique<scs::ScsProtocol>(
             port_, std::chrono::milliseconds(config.response_timeout_ms));
+        if (trace_hook_) {
+            protocol_->set_trace_hook(
+                [this](const char* direction, const std::span<const uint8_t> frame) {
+                    trace_hook_(direction, std::vector<uint8_t>(frame.begin(), frame.end()));
+                });
+        }
         return Result::success();
+    }
+
+    void FeetechScsDriver::set_trace_hook(TraceHook hook) {
+        trace_hook_ = std::move(hook);
+        if (protocol_) {
+            if (trace_hook_) {
+                protocol_->set_trace_hook(
+                    [this](const char* direction, const std::span<const uint8_t> frame) {
+                        trace_hook_(direction, std::vector<uint8_t>(frame.begin(), frame.end()));
+                    });
+            }
+            else {
+                protocol_->set_trace_hook(nullptr);
+            }
+        }
     }
 
     void FeetechScsDriver::close() {
@@ -152,9 +161,9 @@ namespace servo_backends {
         ServoState state;
         state.id = id;
         state.position_ticks = raw.value().position_ticks;
-        state.position_deg = tick_to_degrees(raw.value().position_ticks, config.range_deg);
+        state.position_deg = core::ticks_to_degrees(config, raw.value().position_ticks);
         state.velocity_ticks_s = raw.value().velocity_ticks_per_s;
-        state.velocity_deg_s = ticks_s_to_deg_s(raw.value().velocity_ticks_per_s, config.range_deg);
+        state.velocity_deg_s = core::ticks_s_to_deg_s(config, raw.value().velocity_ticks_per_s);
         state.load = raw.value().load;
         state.voltage = raw.value().voltage;
         state.temperature = raw.value().temperature;
@@ -215,6 +224,10 @@ namespace servo_backends {
                 .access = to_access(descriptor.access),
                 .min = descriptor.min,
                 .max = descriptor.max,
+                .choices = descriptor.choices != nullptr
+                    ? std::vector<int>(descriptor.choices,
+                                       descriptor.choices + descriptor.choice_count)
+                    : std::vector<int>{},
             });
         }
         return descriptors;

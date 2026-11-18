@@ -109,4 +109,16 @@ namespace app {
         return true;
     }
 
+    QVector<QPair<QString, servo_core::ServoId>> StatusTable::selectedServos() const {
+        QVector<QPair<QString, servo_core::ServoId>> result;
+        for (const auto& range : selectedRanges()) {
+            for (int row = range.topRow(); row <= range.bottomRow(); ++row) {
+                result.push_back({item(row, kColumnPort)->text(),
+                                  static_cast<servo_core::ServoId>(
+                                      item(row, kColumnId)->text().toUInt())});
+            }
+        }
+        return result;
+    }
+
 } // namespace app

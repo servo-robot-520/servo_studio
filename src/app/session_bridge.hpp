@@ -14,6 +14,28 @@ Q_DECLARE_METATYPE(QVector<servo_core::ServoInfo>)
 
 namespace app {
 
+    /// @brief 参数读取结果（含描述表元数据），供参数编辑器渲染。
+    struct ParamValue {
+        /// 键名。
+        QString key;
+        /// 英文显示名。
+        QString label;
+        /// 单位。
+        QString unit;
+        /// 最小取值。
+        int min{};
+        /// 最大取值。
+        int max{};
+        /// 当前值；读取失败时无效。
+        int value{};
+        /// 读取是否成功。
+        bool valid{false};
+        /// 是否 EEPROM 参数。
+        bool eeprom{false};
+        /// 枚举取值表；空为自由取值。
+        QVector<int> choices;
+    };
+
     /// @brief 会话桥：把 BusSession 工作线程回调转成 Qt 信号，
     ///        由 Qt queued connection 投递到 GUI 线程。
     ///
@@ -41,8 +63,16 @@ namespace app {
         /// @brief 设置轮询集合与频率（Hz，0 停止）。
         void setPolling(const std::vector<servo_core::ServoId>& ids, int hz);
 
-        /// @brief 提交异步命令，结果经 commandFinished 信号返回。
-        void submit(std::function<servo_core::Result(servo_core::IServoDriver&)> command);
+        /// @brief 提交异步命令；结果经 commandFinished 信号返回，
+        ///        done 为可选的完成回调（工作线程触发）。
+        void submit(std::function<servo_core::Result(servo_core::IServoDriver&)> command,
+                    std::function<void(bool success, const QString& error)> done = {});
+
+        /// @brief 读取全部参数，结果经 parametersReceived 信号返回。
+        void readParameters(const QString& port, servo_core::ServoId id);
+
+        /// @brief 帧级调试入口（工作线程/驱动钩子调用），转 frameTraced 信号。
+        void traceFrame(const char* direction, const std::vector<uint8_t>& frame);
 
     signals:
         /// 日志（级别 + 英文消息），工作线程触发。
@@ -53,6 +83,10 @@ namespace app {
         void scanFinished(const QString& port, const QVector<servo_core::ServoInfo>& infos);
         /// 命令完成，工作线程触发。
         void commandFinished(bool success, const QString& error);
+        /// 参数读取结果，工作线程触发。
+        void parametersReceived(const QString& port, int id, const QVector<ParamValue>& values);
+        /// 帧级收发（tx/rx + 原始字节），工作线程触发。
+        void frameTraced(const QString& port, const QString& direction, const QByteArray& frame);
         /// 会话运行状态变化。
         void runningChanged(bool running);
 
@@ -66,3 +100,5 @@ namespace app {
     };
 
 } // namespace app
+
+Q_DECLARE_METATYPE(QVector<app::ParamValue>)

@@ -1,7 +1,10 @@
 #pragma once
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace servo_core {
 
@@ -19,18 +22,46 @@ namespace servo_core {
     };
 
     /// @brief 单个舵机的换算与钳位配置。
+    ///
+    /// 换算约定：0 度 = center_ticks，range_deg = 全量程（full_scale_ticks）
+    /// 对应的机械行程。编码器几何随型号而异（如 SCS 电位器版 1024/中位 511，
+    /// 磁编码器版 4096/中位 2048），因此以配置表达而非写死。
     struct ServoConfig {
         /// 舵机 id。
         ServoId id{};
         /// 用户可读名称。
         std::string label;
-        /// 机械行程（度），对应编码器整个量程。
+        /// 机械行程（度）。
         double range_deg{300.0};
         /// 命令位置钳位下限（原始计数）。
         double min_ticks{0.0};
         /// 命令位置钳位上限（原始计数）。
         double max_ticks{1023.0};
+        /// 0 度对应的编码器计数。
+        double center_ticks{511.0};
+        /// 编码器全量程计数。
+        double full_scale_ticks{1024.0};
     };
+
+    /// @brief 原始计数 → 度。
+    inline double ticks_to_degrees(const ServoConfig& config, const double ticks) {
+        return (ticks - config.center_ticks) * config.range_deg / config.full_scale_ticks;
+    }
+
+    /// @brief 速度（计数/s）→ 度/s。
+    inline double ticks_s_to_deg_s(const ServoConfig& config, const double ticks_s) {
+        return ticks_s * config.range_deg / config.full_scale_ticks;
+    }
+
+    /// @brief 度 → 原始计数（按 min/max_ticks 与编码器量程钳位）。
+    inline int degrees_to_ticks(const ServoConfig& config, const double degrees) {
+        const long ticks = std::lround(degrees * config.full_scale_ticks / config.range_deg +
+                                       config.center_ticks);
+        const long lower = std::max<long>(0, std::lround(config.min_ticks));
+        const long upper = std::min<long>(std::lround(config.full_scale_ticks) - 1,
+                                          std::lround(config.max_ticks));
+        return static_cast<int>(std::clamp(ticks, lower, upper));
+    }
 
     /// @brief 舵机身份信息。
     struct ServoInfo {
@@ -94,6 +125,8 @@ namespace servo_core {
         int min{};
         /// 最大取值。
         int max{};
+        /// 枚举取值表（参数值为索引时给出实际含义）；空为自由取值。
+        std::vector<int> choices;
     };
 
 } // namespace servo_core

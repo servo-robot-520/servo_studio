@@ -17,6 +17,7 @@ int main(int argc, char** argv) {
     // 跨线程 queued 投递所需元类型。
     qRegisterMetaType<QVector<servo_core::ServoState>>("QVector<servo_core::ServoState>");
     qRegisterMetaType<QVector<servo_core::ServoInfo>>("QVector<servo_core::ServoInfo>");
+    qRegisterMetaType<QVector<app::ParamValue>>("QVector<app::ParamValue>");
 
     QFile style(":/style.qss");
     if (style.open(QIODevice::ReadOnly)) {

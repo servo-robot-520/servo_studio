@@ -93,6 +93,7 @@ QComboBox, QSpinBox, QLineEdit {
     border-radius: 6px;
     padding: 4px 8px;
     min-height: 20px;
+    color: #DCE3EA;
     selection-background-color: #E8B44A;
     selection-color: #15181D;
 }
@@ -107,10 +108,9 @@ QComboBox::drop-down {
 }
 
 QComboBox::down-arrow {
-    image: none;
-    border-left: 4px solid transparent;
-    border-right: 4px solid transparent;
-    border-top: 5px solid #8B98A5;
+    image: url(:/arrow-down.png);
+    width: 8px;
+    height: 5px;
     margin-right: 8px;
 }
 
