@@ -1,3 +1,5 @@
+.idea
+cmake-build-*/
 # 设计/计划文档不入库
 docs/design_plan.md
 
