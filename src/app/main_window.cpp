@@ -441,6 +441,16 @@ namespace app {
             return;
         }
 
+        // 通用参数写入同样需要确认。
+        if (QMessageBox::question(this, tr("写入参数"),
+                                  tr("确定将 %1=%2 写入 %3 的舵机 %4？")
+                                      .arg(key)
+                                      .arg(value)
+                                      .arg(port)
+                                      .arg(id),
+                                  QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
+            return;
+        }
         it->second.bridge->submit([id, key, value](servo_core::IServoDriver& driver) {
             return driver.write_param(id, key.toStdString(), value);
         });
@@ -496,8 +506,17 @@ namespace app {
         if (it == buses_.end()) {
             return;
         }
+        // 默认文件名带舵机型号与 id，便于换机备份归档。
+        QString model = "unknown";
+        for (const auto& info : bus_infos_[port]) {
+            if (info.id == id) {
+                model = QString::fromStdString(info.model);
+                break;
+            }
+        }
         const QString path = QFileDialog::getSaveFileName(
-            this, tr("备份参数"), QStringLiteral("servo_%1_params.json").arg(id),
+            this, tr("备份参数"),
+            QStringLiteral("servo_%1_%2_params.json").arg(model).arg(id),
             tr("参数备份 (*.json)"));
         if (path.isEmpty()) {
             return;

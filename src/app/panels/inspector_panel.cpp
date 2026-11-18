@@ -1,5 +1,7 @@
 #include "app/panels/inspector_panel.hpp"
 
+#include <QAbstractButton>
+#include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QEvent>
@@ -121,6 +123,7 @@ namespace app {
         param_layout->addLayout(param_bar);
 
         param_table_ = new QTableWidget(param_group);
+        param_table_->installEventFilter(this);
         param_table_->setColumnCount(kParamColumnCount);
         param_table_->setHorizontalHeaderLabels({tr("参数"), tr("值"), tr("区域"), tr("操作")});
         param_table_->verticalHeader()->setVisible(false);
@@ -403,6 +406,26 @@ namespace app {
         if (event->type() == QEvent::Wheel && watched->isWidgetType() &&
             !static_cast<QWidget*>(watched)->hasFocus()) {
             return true;
+        }
+        // 编辑控件失焦即提交；焦点真正离开表格族时清除选中高亮，
+        // 让行恢复与未编辑状态一致的样式。焦点移到表格内部（编辑控件）
+        // 不算离开，避免编辑刚打开就被收掉。
+        if (event->type() == QEvent::FocusOut) {
+            QWidget* next = QApplication::focusWidget();
+            const bool left_table = next == nullptr || !param_table_->isAncestorOf(next);
+            if (watched == param_table_) {
+                if (left_table) {
+                    commitEditor();
+                    param_table_->clearSelection();
+                }
+            }
+            else if (watched->isWidgetType() &&
+                     param_table_->isAncestorOf(static_cast<QWidget*>(watched))) {
+                commitEditor();
+                if (left_table) {
+                    param_table_->clearSelection();
+                }
+            }
         }
         return QWidget::eventFilter(watched, event);
     }
