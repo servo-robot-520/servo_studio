@@ -1,5 +1,5 @@
 // 无 GUI 冒烟工具：对真实总线做扫描 / 识别 / 状态读取 / 目标下发 /
-// 扭矩开关 / 参数读写，验证 FeetechDriver 适配层端到端可用。
+// 扭矩开关 / 参数读写，验证 FeetechScsDriver 适配层端到端可用。
 // 输出与错误信息使用英文。
 
 #include <cstdio>
@@ -9,7 +9,7 @@
 #include <thread>
 #include <vector>
 
-#include "servo_backends/feetech_driver.hpp"
+#include "servo_backends/feetech_scs_driver.hpp"
 
 namespace {
 
@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
     }
 
     using namespace servo_backends;
-    FeetechDriver driver;
+    FeetechScsDriver driver;
     servo_core::BusConfig config;
     config.port = options.port;
     config.baud_rate = options.baud_rate;

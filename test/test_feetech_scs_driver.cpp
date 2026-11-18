@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "fake_scs_servo.hpp"
-#include "servo_backends/feetech_driver.hpp"
+#include "servo_backends/feetech_scs_driver.hpp"
 
 namespace servo_backends {
     namespace {
@@ -25,9 +25,9 @@ namespace servo_backends {
             return config;
         }
 
-        TEST(FeetechDriverTest, ScanAndIdentify) {
+        TEST(FeetechScsDriverTest, ScanAndIdentify) {
             FakeScsBus bus({1, 2});
-            FeetechDriver driver;
+            FeetechScsDriver driver;
             ASSERT_TRUE(driver.open(bus_config(bus.slave_path())));
 
             const auto infos = driver.scan(0, 5);
@@ -44,13 +44,13 @@ namespace servo_backends {
             EXPECT_EQ(identity.value().model_number, kModelSc215);
         }
 
-        TEST(FeetechDriverTest, ReadStateConvertsUnits) {
+        TEST(FeetechScsDriverTest, ReadStateConvertsUnits) {
             FakeScsBus bus({1});
             bus.set_present_position(1, 600);
             bus.set_present_speed(1, 100);
             bus.set_present_load(1, static_cast<uint16_t>((1U << 10) | 300U));
             bus.set_present_current(1, 20);
-            FeetechDriver driver;
+            FeetechScsDriver driver;
             ASSERT_TRUE(driver.open(bus_config(bus.slave_path())));
 
             ServoConfig config;
@@ -71,9 +71,9 @@ namespace servo_backends {
             EXPECT_FALSE(state.value().moving);
         }
 
-        TEST(FeetechDriverTest, WriteGoalClampsToConfig) {
+        TEST(FeetechScsDriverTest, WriteGoalClampsToConfig) {
             FakeScsBus bus({1});
-            FeetechDriver driver;
+            FeetechScsDriver driver;
             ASSERT_TRUE(driver.open(bus_config(bus.slave_path())));
 
             ServoConfig config;
@@ -90,9 +90,9 @@ namespace servo_backends {
             EXPECT_EQ(bus.present_position(1), 512);
         }
 
-        TEST(FeetechDriverTest, SyncWriteGoalsBroadcasts) {
+        TEST(FeetechScsDriverTest, SyncWriteGoalsBroadcasts) {
             FakeScsBus bus({1, 2});
-            FeetechDriver driver;
+            FeetechScsDriver driver;
             ASSERT_TRUE(driver.open(bus_config(bus.slave_path())));
 
             ASSERT_TRUE(driver.sync_write_goals({1, 2}, {200, 300}, 0, {500, 600}));
@@ -105,9 +105,9 @@ namespace servo_backends {
             EXPECT_FALSE(driver.sync_write_goals({1, 2}, {200}, 0, {500, 600}));
         }
 
-        TEST(FeetechDriverTest, WriteParamUsesEepromSafeFlow) {
+        TEST(FeetechScsDriverTest, WriteParamUsesEepromSafeFlow) {
             FakeScsBus bus({1});
-            FeetechDriver driver;
+            FeetechScsDriver driver;
             ASSERT_TRUE(driver.open(bus_config(bus.slave_path())));
 
             ASSERT_TRUE(driver.write_param(1, "p_coefficient", 20));
@@ -120,9 +120,9 @@ namespace servo_backends {
             EXPECT_FALSE(driver.write_param(1, "no_such_param", 0));
         }
 
-        TEST(FeetechDriverTest, ReadParamReadsBytesAndWords) {
+        TEST(FeetechScsDriverTest, ReadParamReadsBytesAndWords) {
             FakeScsBus bus({1});
-            FeetechDriver driver;
+            FeetechScsDriver driver;
             ASSERT_TRUE(driver.open(bus_config(bus.slave_path())));
 
             const auto p_gain = driver.read_param(1, "p_coefficient");
@@ -136,8 +136,8 @@ namespace servo_backends {
             EXPECT_FALSE(driver.read_param(1, "no_such_param"));
         }
 
-        TEST(FeetechDriverTest, ParametersExposeDescriptorTable) {
-            FeetechDriver driver;
+        TEST(FeetechScsDriverTest, ParametersExposeDescriptorTable) {
+            FeetechScsDriver driver;
             const auto parameters = driver.parameters();
             ASSERT_EQ(parameters.size(), 26u);
             // 描述表含 ID 与波特率，供 GUI 参数编辑器渲染。

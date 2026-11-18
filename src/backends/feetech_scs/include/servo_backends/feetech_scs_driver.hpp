@@ -23,9 +23,9 @@ namespace servo_backends {
     ///
     /// 单位换算（tick ↔ 度）复用驱动侧 scs_register_map 的换算函数；
     /// 参数读写按 scs_params.hpp 的描述表透传，EEPROM 参数自动走安全写流程。
-    class FeetechDriver : public IServoDriver {
+    class FeetechScsDriver : public IServoDriver {
     public:
-        ~FeetechDriver() override;
+        ~FeetechScsDriver() override;
 
         Result open(const servo_core::BusConfig& config) override;
         void close() override;

@@ -1,4 +1,4 @@
-#include "servo_backends/feetech_driver.hpp"
+#include "servo_backends/feetech_scs_driver.hpp"
 
 #include <algorithm>
 #include <array>
@@ -52,11 +52,11 @@ namespace servo_backends {
 
     } // namespace
 
-    FeetechDriver::~FeetechDriver() {
+    FeetechScsDriver::~FeetechScsDriver() {
         close();
     }
 
-    Result FeetechDriver::open(const core::BusConfig& config) {
+    Result FeetechScsDriver::open(const core::BusConfig& config) {
         close();
         if (const auto result = port_.open(config.port, config.baud_rate); !result) {
             return Result::failure(result.error());
@@ -66,16 +66,16 @@ namespace servo_backends {
         return Result::success();
     }
 
-    void FeetechDriver::close() {
+    void FeetechScsDriver::close() {
         protocol_.reset();
         port_.close();
     }
 
-    bool FeetechDriver::is_open() const {
+    bool FeetechScsDriver::is_open() const {
         return port_.is_open();
     }
 
-    Result FeetechDriver::set_servo_config(const ServoConfig& config) {
+    Result FeetechScsDriver::set_servo_config(const ServoConfig& config) {
         if (config.range_deg <= 0.0) {
             return Result::failure("range_deg must be positive");
         }
@@ -86,13 +86,13 @@ namespace servo_backends {
         return Result::success();
     }
 
-    const ServoConfig& FeetechDriver::config_for(const ServoId id) const {
+    const ServoConfig& FeetechScsDriver::config_for(const ServoId id) const {
         const static ServoConfig kDefault{};
         const auto it = configs_.find(id);
         return it == configs_.end() ? kDefault : it->second;
     }
 
-    ServoInfo FeetechDriver::to_info(const ServoId id,
+    ServoInfo FeetechScsDriver::to_info(const ServoId id,
                                      const scs::ScsServoIdentity& identity) {
         ServoInfo info;
         info.id = id;
@@ -103,7 +103,7 @@ namespace servo_backends {
         return info;
     }
 
-    Expected<std::vector<ServoInfo>> FeetechDriver::scan(const int first_id, const int last_id) {
+    Expected<std::vector<ServoInfo>> FeetechScsDriver::scan(const int first_id, const int last_id) {
         if (!protocol_) {
             return Expected<std::vector<ServoInfo>>::failure("Serial port is not open");
         }
@@ -129,7 +129,7 @@ namespace servo_backends {
         return Expected<std::vector<ServoInfo>>(infos);
     }
 
-    Expected<ServoInfo> FeetechDriver::identify(const ServoId id) {
+    Expected<ServoInfo> FeetechScsDriver::identify(const ServoId id) {
         if (!protocol_) {
             return Expected<ServoInfo>::failure("Serial port is not open");
         }
@@ -140,7 +140,7 @@ namespace servo_backends {
         return Expected<ServoInfo>(to_info(id, identity.value()));
     }
 
-    Expected<ServoState> FeetechDriver::read_state(const ServoId id) {
+    Expected<ServoState> FeetechScsDriver::read_state(const ServoId id) {
         if (!protocol_) {
             return Expected<ServoState>::failure("Serial port is not open");
         }
@@ -163,7 +163,7 @@ namespace servo_backends {
         return Expected<ServoState>(state);
     }
 
-    Result FeetechDriver::write_goal(const ServoId id, const int position_ticks, const int time_ms,
+    Result FeetechScsDriver::write_goal(const ServoId id, const int position_ticks, const int time_ms,
                                      const int speed_ticks_s) {
         if (!protocol_) {
             return Result::failure("Serial port is not open");
@@ -175,7 +175,7 @@ namespace servo_backends {
                                                             speed_ticks_s, 0, 0xFFFF))));
     }
 
-    Result FeetechDriver::sync_write_goals(const std::vector<ServoId>& ids,
+    Result FeetechScsDriver::sync_write_goals(const std::vector<ServoId>& ids,
                                            const std::vector<int>& positions_ticks,
                                            const int time_ms,
                                            const std::vector<int>& speeds_ticks_s) {
@@ -197,14 +197,14 @@ namespace servo_backends {
             ids, positions, static_cast<uint16_t>(std::max(0, time_ms)), speeds));
     }
 
-    Result FeetechDriver::set_torque(const ServoId id, const bool enabled) {
+    Result FeetechScsDriver::set_torque(const ServoId id, const bool enabled) {
         if (!protocol_) {
             return Result::failure("Serial port is not open");
         }
         return to_result(protocol_->set_torque_enabled(id, enabled));
     }
 
-    std::vector<ParamDescriptor> FeetechDriver::parameters() const {
+    std::vector<ParamDescriptor> FeetechScsDriver::parameters() const {
         std::vector<ParamDescriptor> descriptors;
         descriptors.reserve(scs::kParameterDescriptors.size());
         for (const auto& descriptor : scs::kParameterDescriptors) {
@@ -220,7 +220,7 @@ namespace servo_backends {
         return descriptors;
     }
 
-    Expected<int> FeetechDriver::read_param(const ServoId id, const std::string& key) {
+    Expected<int> FeetechScsDriver::read_param(const ServoId id, const std::string& key) {
         if (!protocol_) {
             return Expected<int>::failure("Serial port is not open");
         }
@@ -242,7 +242,7 @@ namespace servo_backends {
         return Expected<int>(data[0]);
     }
 
-    Result FeetechDriver::write_param(const ServoId id, const std::string& key, const int value) {
+    Result FeetechScsDriver::write_param(const ServoId id, const std::string& key, const int value) {
         if (!protocol_) {
             return Result::failure("Serial port is not open");
         }
@@ -277,7 +277,7 @@ namespace servo_backends {
                                                     std::span<const uint8_t>(data.data(), length)));
     }
 
-    Expected<std::vector<uint8_t>> FeetechDriver::read_registers(const ServoId id,
+    Expected<std::vector<uint8_t>> FeetechScsDriver::read_registers(const ServoId id,
                                                                  const uint8_t address,
                                                                  const size_t length) {
         if (!protocol_) {
@@ -294,7 +294,7 @@ namespace servo_backends {
         return Expected<std::vector<uint8_t>>(data);
     }
 
-    Result FeetechDriver::write_registers(const ServoId id, const uint8_t address,
+    Result FeetechScsDriver::write_registers(const ServoId id, const uint8_t address,
                                           const std::vector<uint8_t>& data) {
         if (!protocol_) {
             return Result::failure("Serial port is not open");
@@ -302,9 +302,9 @@ namespace servo_backends {
         return to_result(protocol_->write_registers(id, address, data));
     }
 
-    void FeetechDriver::register_driver() {
+    void FeetechScsDriver::register_driver() {
         core::DriverRegistry::instance().add("feetech_scs",
-                                             [] { return std::make_unique<FeetechDriver>(); });
+                                             [] { return std::make_unique<FeetechScsDriver>(); });
     }
 
 } // namespace servo_backends

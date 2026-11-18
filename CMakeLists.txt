@@ -33,14 +33,14 @@ find_package(Threads REQUIRED)
 target_link_libraries(servo_core PUBLIC Threads::Threads)
 
 # 飞特后端：把驱动核心适配到 IServoDriver。
-add_library(servo_backend_feetech STATIC
-        src/backends/feetech/src/feetech_driver.cpp)
-target_include_directories(servo_backend_feetech PUBLIC src/backends/feetech/include)
-target_link_libraries(servo_backend_feetech PUBLIC servo_core feetech_scs_core)
+add_library(servo_backend_feetech_scs STATIC
+        src/backends/feetech_scs/src/feetech_scs_driver.cpp)
+target_include_directories(servo_backend_feetech_scs PUBLIC src/backends/feetech_scs/include)
+target_link_libraries(servo_backend_feetech_scs PUBLIC servo_core feetech_scs_core)
 
 # 无 GUI 冒烟工具。
 add_executable(servo_smoke tools/servo_smoke.cpp)
-target_link_libraries(servo_smoke PRIVATE servo_backend_feetech)
+target_link_libraries(servo_smoke PRIVATE servo_backend_feetech_scs)
 
 install(TARGETS servo_smoke RUNTIME DESTINATION bin)
 
@@ -48,10 +48,10 @@ include(CTest)
 if (BUILD_TESTING)
     find_package(GTest REQUIRED)
 
-    add_executable(test_feetech_driver test/test_feetech_driver.cpp)
-    target_include_directories(test_feetech_driver PRIVATE test)
-    target_link_libraries(test_feetech_driver PRIVATE servo_backend_feetech GTest::gtest_main)
-    add_test(NAME test_feetech_driver COMMAND test_feetech_driver)
+    add_executable(test_feetech_scs_driver test/test_feetech_scs_driver.cpp)
+    target_include_directories(test_feetech_scs_driver PRIVATE test)
+    target_link_libraries(test_feetech_scs_driver PRIVATE servo_backend_feetech_scs GTest::gtest_main)
+    add_test(NAME test_feetech_scs_driver COMMAND test_feetech_scs_driver)
 
     add_executable(test_bus_session test/test_bus_session.cpp)
     target_link_libraries(test_bus_session PRIVATE servo_core GTest::gtest_main)
