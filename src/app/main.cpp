@@ -2,6 +2,7 @@
 #include <QApplication>
 #include <QFile>
 
+#include "app/button_focus_filter.hpp"
 #include "app/main_window.hpp"
 #include "app/session_bridge.hpp"
 #include "servo_backends/feetech_scs_driver.hpp"
@@ -10,6 +11,10 @@
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
     app.setApplicationName("servo_studio");
+
+    // 鼠标点击按钮后清除滞留的焦点描边（键盘焦点不受影响）。
+    auto* focus_filter = new app::ButtonFocusFilter(&app);
+    app.installEventFilter(focus_filter);
 
     // 跨线程 queued 投递所需元类型。
     qRegisterMetaType<QVector<servo_core::ServoState>>("QVector<servo_core::ServoState>");

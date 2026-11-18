@@ -39,6 +39,8 @@ namespace app {
     public slots:
         /// 更新按钮使能：已连接时"连接"变为"断开"。
         void setConnected(const QString& port, bool connected);
+        /// 扫描进行中时禁用扫描按钮，防止并发扫描。
+        void setScanning(bool scanning);
 
     private slots:
         void refreshPorts();
@@ -51,6 +53,7 @@ namespace app {
         QPushButton* connect_button_;
         QPushButton* scan_button_;
         QPushButton* stop_button_;
+        bool scanning_{false};
     };
 
 } // namespace app

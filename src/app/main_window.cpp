@@ -180,6 +180,7 @@ namespace app {
                         configs_[bus_port].try_emplace(info.id, configFor(bus_port, info.id));
                     }
                     applyPolling(bus_port);
+                    connection_panel_->setScanning(false);
                     log("info", QStringLiteral("Scan on %1 finished: %2 servo(s) found")
                                     .arg(bus_port)
                                     .arg(infos.size()));
@@ -239,6 +240,7 @@ namespace app {
         status_table_->removeBus(port);
         device_tree_->removeBus(port);
         connection_panel_->setConnected(port, false);
+        connection_panel_->setScanning(false);
         log("info", "Disconnected from " + port);
     }
 
@@ -249,6 +251,7 @@ namespace app {
             return;
         }
         statusBar()->showMessage(tr("正在扫描 %1 ...").arg(port));
+        connection_panel_->setScanning(true);
         it->second.bridge->scan(0, 253);
     }
 

@@ -92,13 +92,18 @@ namespace app {
         return poll_spin_->value();
     }
 
+    void ConnectionPanel::setScanning(const bool scanning) {
+        scanning_ = scanning;
+        scan_button_->setEnabled(!scanning && connect_button_->property("connected").toBool());
+    }
+
     void ConnectionPanel::setConnected(const QString& port, const bool connected) {
         if (port != this->port()) {
             return;
         }
         connect_button_->setProperty("connected", connected);
         connect_button_->setText(connected ? tr("断开") : tr("连接"));
-        scan_button_->setEnabled(connected);
+        scan_button_->setEnabled(connected && !scanning_);
         stop_button_->setEnabled(connected);
         port_combo_->setEnabled(!connected);
         baud_combo_->setEnabled(!connected);
