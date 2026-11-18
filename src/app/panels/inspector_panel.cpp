@@ -2,6 +2,7 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QEvent>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -137,6 +138,26 @@ namespace app {
         connect(ticks_spin_, &QSpinBox::valueChanged, this, &InspectorPanel::onGoalValueChanged);
         connect(ticks_slider_, &QSlider::valueChanged, ticks_spin_, &QSpinBox::setValue);
         connect(ticks_spin_, &QSpinBox::valueChanged, ticks_slider_, &QSlider::setValue);
+        // 滑块松开鼠标自动下发目标。
+        connect(ticks_slider_, &QSlider::sliderReleased, this, [this] {
+            if (hasSubject()) {
+                emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
+                                   speed_spin_->value(), false);
+            }
+        });
+
+        // 参数值点击进入编辑；换行/点击别处即提交，避免悬停滚轮误触。
+        connect(param_table_, &QTableWidget::cellClicked, this,
+                [this](const int row, const int column) {
+                    if (column == kColumnValue) {
+                        beginEdit(row);
+                    }
+                    else {
+                        commitEditor();
+                    }
+                });
+        connect(param_table_, &QTableWidget::currentCellChanged, this,
+                [this] { commitEditor(); });
 
         connect(goal_button_, &QPushButton::clicked, this, [this] {
             if (hasSubject()) {
@@ -174,11 +195,15 @@ namespace app {
         });
         connect(write_all_button_, &QPushButton::clicked, this, [this] {
             const int row = param_table_->currentRow();
-            if (hasSubject() && row >= 0) {
-                emit paramWriteAllRequested(subject_port_,
-                                            param_table_->item(row, kColumnKey)->text(),
-                                            param_table_->item(row, kColumnValue)->data(Qt::UserRole).toInt());
+            if (!hasSubject() || row < 0) {
+                return;
             }
+            commitEditor();
+            if (row >= static_cast<int>(param_rows_.size())) {
+                return;
+            }
+            const ParamValue& parameter = param_rows_[row];
+            emit paramWriteAllRequested(subject_port_, parameter.key, parameter.value);
         });
         connect(backup_button_, &QPushButton::clicked, this, [this] {
             if (hasSubject()) {
@@ -248,62 +273,36 @@ namespace app {
         rebuildParameterRows(values);
     }
 
+    QString valueTextFor(const ParamValue& parameter) {
+        if (!parameter.valid) {
+            return "--";
+        }
+        if (!parameter.choices.isEmpty() && parameter.value >= 0 &&
+            parameter.value < parameter.choices.size()) {
+            return QString::number(parameter.choices[parameter.value]);
+        }
+        return QString::number(parameter.value);
+    }
+
     void InspectorPanel::rebuildParameterRows(const QVector<ParamValue>& values) {
+        commitEditor();
+        param_rows_.assign(values.begin(), values.end());
         param_table_->setRowCount(values.size());
         for (int row = 0; row < values.size(); ++row) {
-            const ParamValue& parameter = values[row];
+            const ParamValue& parameter = param_rows_[row];
 
             auto* key_item = new QTableWidgetItem(
                 parameter.unit.isEmpty() ? parameter.key
                                          : QStringLiteral("%1 (%2)").arg(parameter.key,
                                                                          parameter.unit));
             key_item->setFlags(key_item->flags() & ~Qt::ItemIsEditable);
-            param_table_->setItem(row, kColumnKey, key_item);
             key_item->setToolTip(parameter.label);
 
-            QWidget* editor = nullptr;
-            if (!parameter.choices.isEmpty()) {
-                // 语义：参数值 = choices 的下标；条目文本为该取值的实际含义。
-                auto* combo = new QComboBox;
-                for (int index = 0; index < parameter.choices.size(); ++index) {
-                    combo->addItem(QString::number(parameter.choices[index]), index);
-                }
-                if (parameter.valid && parameter.value >= 0 &&
-                    parameter.value < parameter.choices.size()) {
-                    combo->setCurrentIndex(parameter.value);
-                }
-                editor = combo;
-            }
-            else {
-                auto* spin = new QSpinBox;
-                spin->setRange(parameter.min, parameter.max);
-                if (parameter.valid) {
-                    spin->setValue(parameter.value);
-                }
-                else {
-                    spin->setSpecialValueText("--");
-                }
-                editor = spin;
-            }
-            param_table_->setCellWidget(row, kColumnValue, editor);
-            // 提交时以 UserRole 携带当前值。
-            auto* value_item = new QTableWidgetItem;
-            value_item->setData(Qt::UserRole, parameter.valid ? parameter.value : parameter.min);
-            param_table_->setItem(row, kColumnValue, value_item);
-            const auto store_value = [value_item](const int value) {
-                value_item->setData(Qt::UserRole, value);
-            };
-            if (auto* combo = qobject_cast<QComboBox*>(editor)) {
-                connect(combo, &QComboBox::currentIndexChanged, combo, [combo, store_value] {
-                    store_value(combo->currentData().toInt());
-                });
-            }
-            else if (auto* spin = qobject_cast<QSpinBox*>(editor)) {
-                connect(spin, &QSpinBox::valueChanged, spin, [store_value](const int value) {
-                    store_value(value);
-                });
-            }
+            auto* value_item = new QTableWidgetItem(valueTextFor(parameter));
+            value_item->setFlags(value_item->flags() & ~Qt::ItemIsEditable);
 
+            param_table_->setItem(row, kColumnKey, key_item);
+            param_table_->setItem(row, kColumnValue, value_item);
             param_table_->setItem(row, kColumnArea,
                                   new QTableWidgetItem(parameter.eeprom ? tr("EEPROM") : tr("RAM")));
 
@@ -313,23 +312,80 @@ namespace app {
                 if (!hasSubject()) {
                     return;
                 }
-                QString value_text;
-                if (const auto* combo =
-                        qobject_cast<QComboBox*>(param_table_->cellWidget(row, kColumnValue))) {
-                    value_text = combo->currentText();
+                commitEditor();
+                if (row >= static_cast<int>(param_rows_.size())) {
+                    return;
                 }
-                else if (const auto* spin =
-                             qobject_cast<QSpinBox*>(param_table_->cellWidget(row, kColumnValue))) {
-                    value_text = spin->text();
-                }
-                emit paramWriteRequested(subject_port_, subject_id_,
-                                         param_table_->item(row, kColumnKey)->text(),
-                                         param_table_->item(row, kColumnValue)
-                                             ->data(Qt::UserRole)
-                                             .toInt(),
-                                         value_text);
+                const ParamValue& parameter = param_rows_[row];
+                emit paramWriteRequested(subject_port_, subject_id_, parameter.key,
+                                         parameter.value, valueTextFor(parameter));
             });
         }
+    }
+
+    void InspectorPanel::beginEdit(const int row) {
+        if (editing_row_ == row) {
+            return;
+        }
+        commitEditor();
+        if (row < 0 || row >= static_cast<int>(param_rows_.size())) {
+            return;
+        }
+        const ParamValue& parameter = param_rows_[row];
+        QWidget* editor = nullptr;
+        if (!parameter.choices.isEmpty()) {
+            // 语义：参数值 = choices 的下标；条目文本为该取值的实际含义。
+            auto* combo = new QComboBox;
+            for (int index = 0; index < parameter.choices.size(); ++index) {
+                combo->addItem(QString::number(parameter.choices[index]), index);
+            }
+            if (parameter.value >= 0 && parameter.value < parameter.choices.size()) {
+                combo->setCurrentIndex(parameter.value);
+            }
+            editor = combo;
+        }
+        else {
+            auto* spin = new QSpinBox;
+            spin->setRange(parameter.min, parameter.max);
+            spin->setValue(parameter.value);
+            editor = spin;
+        }
+        editor->installEventFilter(this);
+        param_table_->setCellWidget(row, kColumnValue, editor);
+        editing_row_ = row;
+        editor->setFocus();
+    }
+
+    void InspectorPanel::commitEditor() {
+        if (editing_row_ < 0) {
+            return;
+        }
+        const int row = editing_row_;
+        editing_row_ = -1;
+        QWidget* editor = param_table_->cellWidget(row, kColumnValue);
+        if (editor == nullptr || row >= static_cast<int>(param_rows_.size())) {
+            return;
+        }
+        ParamValue& parameter = param_rows_[row];
+        if (const auto* combo = qobject_cast<QComboBox*>(editor)) {
+            parameter.value = combo->currentData().toInt();
+        }
+        else if (const auto* spin = qobject_cast<QSpinBox*>(editor)) {
+            parameter.value = spin->value();
+        }
+        parameter.valid = true;
+        param_table_->removeCellWidget(row, kColumnValue);
+        editor->deleteLater();
+        param_table_->item(row, kColumnValue)->setText(valueTextFor(parameter));
+    }
+
+    bool InspectorPanel::eventFilter(QObject* watched, QEvent* event) {
+        // 编辑控件未获焦点时忽略滚轮，杜绝悬停滚动误改值。
+        if (event->type() == QEvent::Wheel && watched->isWidgetType() &&
+            !static_cast<QWidget*>(watched)->hasFocus()) {
+            return true;
+        }
+        return QWidget::eventFilter(watched, event);
     }
 
 } // namespace app

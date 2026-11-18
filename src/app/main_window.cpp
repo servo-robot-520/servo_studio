@@ -180,8 +180,11 @@ namespace app {
                         configs_[bus_port].try_emplace(info.id, configFor(bus_port, info.id));
                     }
                     applyPolling(bus_port);
-                    statusBar()->showMessage(tr("%1：发现 %2 个舵机").arg(bus_port).arg(infos.size()),
-                                             6000);
+                    log("info", QStringLiteral("Scan on %1 finished: %2 servo(s) found")
+                                    .arg(bus_port)
+                                    .arg(infos.size()));
+                    statusBar()->showMessage(
+                        tr("%1：扫描结束，发现 %2 个舵机").arg(bus_port).arg(infos.size()), 10000);
                 });
         connect(bridge, &SessionBridge::parametersReceived, this,
                 [this](const QString& bus_port, const int id,

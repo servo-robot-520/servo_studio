@@ -2,6 +2,7 @@
 
 #include <QWidget>
 #include <QVector>
+#include <vector>
 
 #include "app/session_bridge.hpp"
 #include "servo_core/types.hpp"
@@ -64,6 +65,12 @@ namespace app {
     private:
         [[nodiscard]] bool hasSubject() const;
         void rebuildParameterRows(const QVector<ParamValue>& values);
+        /// 进入某行的值编辑（点击触发）。
+        void beginEdit(int row);
+        /// 提交当前编辑（换行/点击别处/写入前调用）。
+        void commitEditor();
+
+        bool eventFilter(QObject* watched, QEvent* event) override;
 
         QString subject_port_;
         servo_core::ServoId subject_id_{};
@@ -91,6 +98,9 @@ namespace app {
         QPushButton* write_all_button_;
         QPushButton* backup_button_;
         QPushButton* restore_button_;
+        /// 参数行的暂存值（点击值列进入编辑后写回）。
+        std::vector<ParamValue> param_rows_;
+        int editing_row_{-1};
     };
 
 } // namespace app
