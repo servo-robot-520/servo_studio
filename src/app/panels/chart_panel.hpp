@@ -53,7 +53,6 @@ namespace app {
             QValueAxis* axis_x{};
             QValueAxis* axis_y{};
             QChartView* view{};
-            QWidget* container{};
             std::deque<QPointF> points;
         };
 
