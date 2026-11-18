@@ -53,7 +53,7 @@ install(TARGETS servo_smoke RUNTIME DESTINATION bin)
 # Qt6 GUI 应用。
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Charts)
 
 add_executable(servo_studio
         src/app/main.cpp
@@ -62,9 +62,10 @@ add_executable(servo_studio
         src/app/panels/connection_panel.cpp
         src/app/panels/device_tree.cpp
         src/app/panels/status_table.cpp
+        src/app/panels/chart_panel.cpp
         src/app/resources/app.qrc)
 target_include_directories(servo_studio PRIVATE src)
-target_link_libraries(servo_studio PRIVATE servo_backend_feetech_scs Qt6::Widgets)
+target_link_libraries(servo_studio PRIVATE servo_backend_feetech_scs Qt6::Widgets Qt6::Charts)
 
 install(TARGETS servo_studio RUNTIME DESTINATION bin)
 

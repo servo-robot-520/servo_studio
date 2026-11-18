@@ -20,6 +20,8 @@ namespace app {
         void removeBus(const QString& port);
         /// 清空全部行。
         void clearAll();
+        /// 当前选中行的舵机；无选中时返回 false。
+        [[nodiscard]] bool selectedServo(QString* port, servo_core::ServoId* id) const;
 
     private:
         /// 查找 (port, id) 所在行；不存在返回 -1。

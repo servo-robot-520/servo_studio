@@ -85,4 +85,23 @@ namespace app {
         return ids;
     }
 
+    bool DeviceTree::selectedServo(QString* port, servo_core::ServoId* id) const {
+        const auto items = selectedItems();
+        if (items.isEmpty()) {
+            return false;
+        }
+        const QTreeWidgetItem* item = items.first();
+        const QTreeWidgetItem* bus = item->parent();
+        if (bus == nullptr) {
+            return false; // 选中的是总线节点。
+        }
+        if (port != nullptr) {
+            *port = bus->data(0, kBusPortRole).toString();
+        }
+        if (id != nullptr) {
+            *id = static_cast<servo_core::ServoId>(item->data(0, kServoIdRole).toUInt());
+        }
+        return true;
+    }
+
 } // namespace app

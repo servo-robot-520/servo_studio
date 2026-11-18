@@ -12,6 +12,7 @@ namespace app {
     class ConnectionPanel;
     class DeviceTree;
     class StatusTable;
+    class ChartPanel;
 
     /// @brief 主窗口：顶部连接面板，左侧设备树，右侧实时状态表。
     ///
@@ -32,6 +33,8 @@ namespace app {
         void disconnectBus(const QString& port);
         void scanBus(const QString& port);
         void stopAll(const QString& port);
+        void setPollRate(int hz);
+        void onServoSelected();
 
     private:
         struct BusEntry {
@@ -40,10 +43,13 @@ namespace app {
         };
 
         void log(const QString& level, const QString& message);
+        void applyPolling(const QString& port);
 
         ConnectionPanel* connection_panel_;
         DeviceTree* device_tree_;
         StatusTable* status_table_;
+        ChartPanel* chart_panel_;
+        int poll_hz_{50};
         std::map<QString, BusEntry> buses_;
     };
 

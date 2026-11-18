@@ -94,4 +94,19 @@ namespace app {
         setRowCount(0);
     }
 
+    bool StatusTable::selectedServo(QString* port, servo_core::ServoId* id) const {
+        const auto ranges = selectedRanges();
+        if (ranges.isEmpty()) {
+            return false;
+        }
+        const int row = ranges.first().topRow();
+        if (port != nullptr) {
+            *port = item(row, kColumnPort)->text();
+        }
+        if (id != nullptr) {
+            *id = static_cast<servo_core::ServoId>(item(row, kColumnId)->text().toUInt());
+        }
+        return true;
+    }
+
 } // namespace app

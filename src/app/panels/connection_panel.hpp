@@ -21,6 +21,8 @@ namespace app {
         [[nodiscard]] int baudRate() const;
         /// 当前表单中的应答超时（毫秒）。
         [[nodiscard]] int timeoutMs() const;
+        /// 当前表单中的轮询频率（Hz）。
+        [[nodiscard]] int pollRate() const;
 
     signals:
         /// 请求连接总线。
@@ -31,6 +33,8 @@ namespace app {
         void scanRequested(const QString& port);
         /// 请求全部松扭矩（急停）。
         void stopAllRequested(const QString& port);
+        /// 轮询频率变化（Hz）。
+        void pollRateChanged(int hz);
 
     public slots:
         /// 更新按钮使能：已连接时"连接"变为"断开"。
@@ -43,6 +47,7 @@ namespace app {
         QComboBox* port_combo_;
         QComboBox* baud_combo_;
         QSpinBox* timeout_spin_;
+        QSpinBox* poll_spin_;
         QPushButton* connect_button_;
         QPushButton* scan_button_;
         QPushButton* stop_button_;

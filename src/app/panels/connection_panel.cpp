@@ -39,6 +39,14 @@ namespace app {
         timeout_spin_->setValue(10);
         layout->addWidget(timeout_spin_);
 
+        layout->addWidget(new QLabel(tr("轮询(Hz)"), this));
+        poll_spin_ = new QSpinBox(this);
+        poll_spin_->setRange(10, 100);
+        poll_spin_->setValue(50);
+        connect(poll_spin_, &QSpinBox::valueChanged, this,
+                [this](const int hz) { emit pollRateChanged(hz); });
+        layout->addWidget(poll_spin_);
+
         connect_button_ = new QPushButton(tr("连接"), this);
         connect_button_->setObjectName("primary");
         connect(connect_button_, &QPushButton::clicked, this, [this] {
@@ -78,6 +86,10 @@ namespace app {
 
     int ConnectionPanel::timeoutMs() const {
         return timeout_spin_->value();
+    }
+
+    int ConnectionPanel::pollRate() const {
+        return poll_spin_->value();
     }
 
     void ConnectionPanel::setConnected(const QString& port, const bool connected) {

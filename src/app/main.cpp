@@ -2,8 +2,10 @@
 #include <QApplication>
 #include <QFile>
 #include <QTimer>
+#include <QTreeWidgetItem>
 
 #include "app/main_window.hpp"
+#include "app/panels/device_tree.hpp"
 #include "app/session_bridge.hpp"
 #include "servo_backends/feetech_scs_driver.hpp"
 #include "servo_core/registry.hpp"
@@ -40,6 +42,15 @@ int main(int argc, char** argv) {
         QTimer::singleShot(1200, &window, [&window, port] {
             QMetaObject::invokeMethod(&window, "scanBus", Qt::QueuedConnection,
                                       Q_ARG(QString, port));
+        });
+        // 选中第一个舵机节点，驱动曲线面板（脚手架专用）。
+        QTimer::singleShot(4000, &window, [&window] {
+            if (auto* tree = window.findChild<app::DeviceTree*>()) {
+                QTreeWidgetItem* bus = tree->topLevelItem(0);
+                if (bus != nullptr && bus->childCount() > 0) {
+                    tree->setCurrentItem(bus->child(0));
+                }
+            }
         });
     }
     if (!shot.isEmpty()) {

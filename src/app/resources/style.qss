@@ -168,6 +168,11 @@ QTableWidget#telemetry, QTreeWidget#devices {
 
 /* ---------- 分割条与滚动条 ---------- */
 
+QChartView {
+    background: #1D222A;
+    border: none;
+}
+
 QSplitter::handle {
     background: #15181D;
     width: 6px;

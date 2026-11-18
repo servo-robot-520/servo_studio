@@ -6,17 +6,13 @@
 #include <QVBoxLayout>
 #include <cstdio>
 
+#include "app/panels/chart_panel.hpp"
 #include "app/panels/connection_panel.hpp"
 #include "app/panels/device_tree.hpp"
 #include "app/panels/status_table.hpp"
 #include "servo_core/registry.hpp"
 
 namespace app {
-
-    namespace {
-        // 状态表轮询频率（Hz）；曲线与频率调节在 M4 提供。
-        constexpr int kPollHz = 50;
-    }
 
     MainWindow::MainWindow(QWidget* parent) :
         QMainWindow(parent) {
@@ -34,9 +30,18 @@ namespace app {
         auto* splitter = new QSplitter(Qt::Horizontal, central);
         device_tree_ = new DeviceTree(splitter);
         device_tree_->setMinimumWidth(320);
-        status_table_ = new StatusTable(splitter);
+
+        // 监控区：曲线在上、状态表在下。
+        auto* monitor = new QSplitter(Qt::Vertical, splitter);
+        chart_panel_ = new ChartPanel(monitor);
+        status_table_ = new StatusTable(monitor);
+        monitor->addWidget(chart_panel_);
+        monitor->addWidget(status_table_);
+        monitor->setStretchFactor(0, 2);
+        monitor->setStretchFactor(1, 1);
+
         splitter->addWidget(device_tree_);
-        splitter->addWidget(status_table_);
+        splitter->addWidget(monitor);
         splitter->setStretchFactor(0, 0);
         splitter->setStretchFactor(1, 1);
         layout->addWidget(splitter, 1);
@@ -49,6 +54,11 @@ namespace app {
                 &MainWindow::disconnectBus);
         connect(connection_panel_, &ConnectionPanel::scanRequested, this, &MainWindow::scanBus);
         connect(connection_panel_, &ConnectionPanel::stopAllRequested, this, &MainWindow::stopAll);
+        connect(connection_panel_, &ConnectionPanel::pollRateChanged, this, &MainWindow::setPollRate);
+        connect(device_tree_, &QTreeWidget::itemSelectionChanged, this,
+                &MainWindow::onServoSelected);
+        connect(status_table_, &QTableWidget::itemSelectionChanged, this,
+                &MainWindow::onServoSelected);
     }
 
     MainWindow::~MainWindow() {
@@ -103,18 +113,12 @@ namespace app {
         connect(bridge, &SessionBridge::statesReceived, this,
                 [this](const QString& bus_port, const QVector<servo_core::ServoState>& states) {
                     status_table_->updateStates(bus_port, states);
+                    chart_panel_->appendStates(bus_port, states);
                 });
         connect(bridge, &SessionBridge::scanFinished, this,
                 [this](const QString& bus_port, const QVector<servo_core::ServoInfo>& infos) {
                     device_tree_->setServos(bus_port, infos);
-                    std::vector<servo_core::ServoId> ids;
-                    ids.reserve(infos.size());
-                    for (const auto& info : infos) {
-                        ids.push_back(info.id);
-                    }
-                    if (const auto it = buses_.find(bus_port); it != buses_.end()) {
-                        it->second.bridge->setPolling(ids, kPollHz);
-                    }
+                    applyPolling(bus_port);
                     statusBar()->showMessage(tr("%1：发现 %2 个舵机").arg(bus_port).arg(infos.size()),
                                              6000);
                 });
@@ -176,6 +180,32 @@ namespace app {
             return servo_core::Result::success();
         });
         log("info", "Torque released on " + port);
+    }
+
+    void MainWindow::setPollRate(const int hz) {
+        poll_hz_ = hz;
+        for (const auto& [port, entry] : buses_) {
+            applyPolling(port);
+        }
+        statusBar()->showMessage(tr("轮询频率：%1 Hz").arg(hz), 4000);
+    }
+
+    void MainWindow::applyPolling(const QString& port) {
+        const auto it = buses_.find(port);
+        if (it == buses_.end()) {
+            return;
+        }
+        const auto ids = device_tree_->servoIds(port);
+        std::vector<servo_core::ServoId> std_ids(ids.begin(), ids.end());
+        it->second.bridge->setPolling(std_ids, poll_hz_);
+    }
+
+    void MainWindow::onServoSelected() {
+        QString port;
+        servo_core::ServoId id = 0;
+        if (device_tree_->selectedServo(&port, &id) || status_table_->selectedServo(&port, &id)) {
+            chart_panel_->setSubject(port, id);
+        }
     }
 
 } // namespace app
