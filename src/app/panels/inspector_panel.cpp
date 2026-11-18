@@ -36,10 +36,6 @@ namespace app {
         layout->setContentsMargins(0, 0, 0, 0);
         layout->setSpacing(10);
 
-        subject_label_ = new QLabel(tr("未选中舵机"), this);
-        subject_label_->setObjectName("title");
-        layout->addWidget(subject_label_);
-
         // ---------- 命令区 ----------
         auto* command_group = new QGroupBox(tr("命令"), this);
         auto* form = new QFormLayout(command_group);
@@ -256,17 +252,15 @@ namespace app {
     }
 
     void InspectorPanel::setSubject(const QString& port, const servo_core::ServoId id,
-                                    const QString& model, const servo_core::ServoConfig& config) {
+                                    const servo_core::ServoConfig& config) {
         if (has_subject_ && subject_port_ == port && subject_id_ == id) {
             return;
         }
         subject_port_ = port;
         subject_id_ = id;
-        subject_model_ = model;
         subject_config_ = config;
         has_subject_ = true;
 
-        subject_label_->setText(tr("%1 · id %2 · %3").arg(port).arg(id).arg(model));
         updateConfig(config);
         ticks_spin_->setValue(static_cast<int>(config.center_ticks));
         param_table_->setRowCount(0);
@@ -274,7 +268,6 @@ namespace app {
 
     void InspectorPanel::clear() {
         has_subject_ = false;
-        subject_label_->setText(tr("未选中舵机"));
         param_table_->setRowCount(0);
     }
 

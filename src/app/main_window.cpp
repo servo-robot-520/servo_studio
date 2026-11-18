@@ -307,8 +307,8 @@ namespace app {
                 break;
             }
         }
-        inspector_panel_->setSubject(port, id, model, configFor(port, id));
-        chart_panel_->setSubject(port, id);
+        inspector_panel_->setSubject(port, id, configFor(port, id));
+        chart_panel_->setSubject(port, id, model);
         if (const auto it = buses_.find(port); it != buses_.end()) {
             it->second.bridge->readParameters(port, id);
         }

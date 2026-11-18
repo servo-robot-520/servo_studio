@@ -26,7 +26,8 @@ namespace app {
         explicit InspectorPanel(QWidget* parent = nullptr);
 
         /// 设置监控对象并按配置初始化换算；同一对象重复调用为空操作。
-        void setSubject(const QString& port, servo_core::ServoId id, const QString& model,
+        /// 主题信息（串口/id/型号）由监控区统一展示，此处不再重复。
+        void setSubject(const QString& port, servo_core::ServoId id,
                         const servo_core::ServoConfig& config);
         /// 更新当前对象的换算配置（不重置参数表）。
         void updateConfig(const servo_core::ServoConfig& config);
@@ -74,11 +75,9 @@ namespace app {
 
         QString subject_port_;
         servo_core::ServoId subject_id_{};
-        QString subject_model_;
         servo_core::ServoConfig subject_config_;
         bool has_subject_{false};
 
-        QLabel* subject_label_;
         QSpinBox* ticks_spin_;
         QLabel* deg_label_;
         QSlider* ticks_slider_;

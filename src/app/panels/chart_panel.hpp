@@ -31,7 +31,7 @@ namespace app {
         explicit ChartPanel(QWidget* parent = nullptr);
 
         /// 切换监控对象（同一对象重复调用为空操作）。
-        void setSubject(const QString& port, servo_core::ServoId id);
+        void setSubject(const QString& port, servo_core::ServoId id, const QString& model);
         /// 清空监控对象与历史。
         void clear();
 

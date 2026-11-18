@@ -48,8 +48,8 @@ namespace app {
         layout->setContentsMargins(0, 0, 0, 0);
         layout->setSpacing(8);
 
-        subject_label_ = new QLabel(tr("未选中舵机（在左侧设备树或状态表中选择）"), this);
-        subject_label_->setObjectName("muted");
+        subject_label_ = new QLabel(tr("监控：未选中舵机（在左侧设备树或状态表中选择）"), this);
+        subject_label_->setObjectName("title");
         layout->addWidget(subject_label_);
 
         auto* grid = new QGridLayout;
@@ -112,20 +112,22 @@ namespace app {
         clock_.start();
     }
 
-    void ChartPanel::setSubject(const QString& port, const servo_core::ServoId id) {
+    void ChartPanel::setSubject(const QString& port, const servo_core::ServoId id,
+                                const QString& model) {
         if (has_subject_ && subject_port_ == port && subject_id_ == id) {
             return;
         }
         subject_port_ = port;
         subject_id_ = id;
         has_subject_ = true;
-        subject_label_->setText(tr("监控：%1 · id %2").arg(port).arg(id));
+        // 主题信息（串口/id/型号）只在监控区展示一次。
+        subject_label_->setText(tr("监控：%1 · id %2 · %3").arg(port).arg(id).arg(model));
         resetSeries();
     }
 
     void ChartPanel::clear() {
         has_subject_ = false;
-        subject_label_->setText(tr("未选中舵机（在左侧设备树或状态表中选择）"));
+        subject_label_->setText(tr("监控：未选中舵机（在左侧设备树或状态表中选择）"));
         resetSeries();
     }
 
