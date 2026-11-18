@@ -44,6 +44,10 @@ namespace app {
                                  int value, const QString& valueText);
         /// 将参数写入总线全部舵机。
         void paramWriteAllRequested(const QString& port, const QString& key, int value);
+        /// 备份整表参数到文件。
+        void backupRequested(const QString& port, servo_core::ServoId id);
+        /// 从文件恢复参数。
+        void restoreRequested(const QString& port, servo_core::ServoId id);
         /// 重新读取参数。
         void reloadParametersRequested(const QString& port, servo_core::ServoId id);
         /// 应用换算配置（机械行程/命令钳位）。
@@ -85,6 +89,8 @@ namespace app {
         QTableWidget* param_table_;
         QPushButton* reload_button_;
         QPushButton* write_all_button_;
+        QPushButton* backup_button_;
+        QPushButton* restore_button_;
     };
 
 } // namespace app

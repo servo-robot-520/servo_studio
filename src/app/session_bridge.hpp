@@ -71,6 +71,13 @@ namespace app {
         /// @brief 读取全部参数，结果经 parametersReceived 信号返回。
         void readParameters(const QString& port, servo_core::ServoId id);
 
+        /// @brief 备份整表参数到 JSON 文件（工作线程读取并写文件）。
+        void backupParameters(const QString& port, servo_core::ServoId id, const QString& path);
+
+        /// @brief 恢复参数（调用方已用 paramsForRestore 剔除 id/波特率）。
+        void restoreParameters(const QString& port, servo_core::ServoId id,
+                               const QMap<QString, int>& params);
+
         /// @brief 帧级调试入口（工作线程/驱动钩子调用），转 frameTraced 信号。
         void traceFrame(const char* direction, const std::vector<uint8_t>& frame);
 
@@ -85,6 +92,11 @@ namespace app {
         void commandFinished(bool success, const QString& error);
         /// 参数读取结果，工作线程触发。
         void parametersReceived(const QString& port, int id, const QVector<ParamValue>& values);
+        /// 参数备份完成，工作线程触发。
+        void backupFinished(const QString& path, bool success, const QString& error);
+        /// 参数恢复完成，工作线程触发。
+        void restoreFinished(const QString& port, int id, int written, bool success,
+                             const QString& error);
         /// 帧级收发（tx/rx + 原始字节），工作线程触发。
         void frameTraced(const QString& port, const QString& direction, const QByteArray& frame);
         /// 会话运行状态变化。

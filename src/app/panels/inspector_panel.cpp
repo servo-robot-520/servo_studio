@@ -107,9 +107,13 @@ namespace app {
         auto* param_bar = new QHBoxLayout;
         reload_button_ = new QPushButton(tr("重新读取"), param_group);
         write_all_button_ = new QPushButton(tr("写入到全部舵机"), param_group);
+        backup_button_ = new QPushButton(tr("备份参数"), param_group);
+        restore_button_ = new QPushButton(tr("恢复参数"), param_group);
         param_bar->addWidget(reload_button_);
         param_bar->addWidget(write_all_button_);
         param_bar->addStretch(1);
+        param_bar->addWidget(backup_button_);
+        param_bar->addWidget(restore_button_);
         param_layout->addLayout(param_bar);
 
         param_table_ = new QTableWidget(param_group);
@@ -174,6 +178,16 @@ namespace app {
                 emit paramWriteAllRequested(subject_port_,
                                             param_table_->item(row, kColumnKey)->text(),
                                             param_table_->item(row, kColumnValue)->data(Qt::UserRole).toInt());
+            }
+        });
+        connect(backup_button_, &QPushButton::clicked, this, [this] {
+            if (hasSubject()) {
+                emit backupRequested(subject_port_, subject_id_);
+            }
+        });
+        connect(restore_button_, &QPushButton::clicked, this, [this] {
+            if (hasSubject()) {
+                emit restoreRequested(subject_port_, subject_id_);
             }
         });
     }

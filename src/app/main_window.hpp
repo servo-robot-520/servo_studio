@@ -47,6 +47,8 @@ namespace app {
         void handleParamWriteAll(const QString& port, const QString& key, int value);
         void handleServoConfig(const QString& port, servo_core::ServoId id, double rangeDeg,
                                double minTicks, double maxTicks);
+        void handleBackup(const QString& port, servo_core::ServoId id);
+        void handleRestore(const QString& port, servo_core::ServoId id);
 
     private:
         struct BusEntry {

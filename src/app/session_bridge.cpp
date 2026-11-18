@@ -1,5 +1,9 @@
 #include "app/session_bridge.hpp"
 
+#include <QFile>
+
+#include "app/params_backup.hpp"
+
 namespace app {
 
     SessionBridge::SessionBridge(QObject* parent) :
@@ -105,6 +109,64 @@ namespace app {
         emit frameTraced(port_, QString::fromLatin1(direction),
                          QByteArray(reinterpret_cast<const char*>(frame.data()),
                                     static_cast<int>(frame.size())));
+    }
+
+    void SessionBridge::backupParameters(const QString& port, const servo_core::ServoId id,
+                                         const QString& path) {
+        if (!session_) {
+            return;
+        }
+        submit(
+            [id, path](servo_core::IServoDriver& driver) {
+                ParamsBackup backup;
+                backup.id = id;
+                if (const auto info = driver.identify(id)) {
+                    backup.model = QString::fromStdString(info.value().model);
+                }
+                for (const auto& descriptor : driver.parameters()) {
+                    if (const auto value = driver.read_param(id, descriptor.key)) {
+                        backup.params[QString::fromStdString(descriptor.key)] = value.value();
+                    }
+                }
+                QFile file(path);
+                if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                    return servo_core::Result::failure(
+                        "Failed to open '" + path.toStdString() + "' for writing");
+                }
+                file.write(serializeBackup(backup));
+                return servo_core::Result::success();
+            },
+            [this, port, id, path](const bool success, const QString& error) {
+                emit backupFinished(path, success, error);
+                if (success) {
+                    emit logReceived("info",
+                                     QStringLiteral("Parameters of servo %1 backed up to %2")
+                                         .arg(id)
+                                         .arg(path));
+                }
+            });
+    }
+
+    void SessionBridge::restoreParameters(const QString& port, const servo_core::ServoId id,
+                                          const QMap<QString, int>& params) {
+        if (!session_) {
+            return;
+        }
+        auto written = std::make_shared<int>(0);
+        submit(
+            [id, params, written](servo_core::IServoDriver& driver) {
+                for (auto it = params.constBegin(); it != params.constEnd(); ++it) {
+                    if (const auto result = driver.write_param(id, it.key().toStdString(), it.value());
+                        !result) {
+                        return result;
+                    }
+                    ++*written;
+                }
+                return servo_core::Result::success();
+            },
+            [this, port, id, written](const bool success, const QString& error) {
+                emit restoreFinished(port, id, *written, success, error);
+            });
     }
 
     void SessionBridge::stop() {

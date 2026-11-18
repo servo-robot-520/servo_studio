@@ -162,8 +162,17 @@ QTableWidget {
 }
 
 /* 数字列等宽右对齐在代码里设置；遥测数字统一等宽字体。 */
-QTableWidget#telemetry, QTreeWidget#devices {
+QTableWidget#telemetry, QTreeWidget#devices, QTextEdit#telemetry {
     font-family: "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace;
+}
+
+QTextEdit {
+    background: #1D222A;
+    border: 1px solid #323B45;
+    border-radius: 6px;
+    color: #DCE3EA;
+    selection-background-color: #E8B44A;
+    selection-color: #15181D;
 }
 
 /* ---------- 分割条与滚动条 ---------- */

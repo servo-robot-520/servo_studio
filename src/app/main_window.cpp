@@ -1,6 +1,8 @@
 #include "app/main_window.hpp"
 
 #include <QCloseEvent>
+#include <QFile>
+#include <QFileDialog>
 #include <QMessageBox>
 #include <QSplitter>
 #include <QStatusBar>
@@ -13,6 +15,7 @@
 #include "app/panels/inspector_panel.hpp"
 #include "app/panels/log_panel.hpp"
 #include "app/panels/status_table.hpp"
+#include "app/params_backup.hpp"
 #include "servo_core/registry.hpp"
 
 namespace app {
@@ -85,6 +88,9 @@ namespace app {
                 &MainWindow::handleParamWriteAll);
         connect(inspector_panel_, &InspectorPanel::servoConfigRequested, this,
                 &MainWindow::handleServoConfig);
+        connect(inspector_panel_, &InspectorPanel::backupRequested, this, &MainWindow::handleBackup);
+        connect(inspector_panel_, &InspectorPanel::restoreRequested, this,
+                &MainWindow::handleRestore);
         connect(inspector_panel_, &InspectorPanel::reloadParametersRequested, this,
                 [this](const QString& port, const servo_core::ServoId id) {
                     if (const auto it = buses_.find(port); it != buses_.end()) {
@@ -186,6 +192,23 @@ namespace app {
         connect(bridge, &SessionBridge::commandFinished, this,
                 [this](const bool success, const QString& error) {
                     if (!success) {
+                        log("error", error);
+                    }
+                });
+        connect(bridge, &SessionBridge::restoreFinished, this,
+                [this](const QString& bus_port, const int id, const int written,
+                       const bool success, const QString& error) {
+                    if (success) {
+                        log("info", QStringLiteral("Restored %1 parameter(s) on servo %2 (%3)")
+                                        .arg(written)
+                                        .arg(id)
+                                        .arg(bus_port));
+                        if (const auto it = buses_.find(bus_port); it != buses_.end()) {
+                            it->second.bridge->readParameters(bus_port,
+                                                              static_cast<servo_core::ServoId>(id));
+                        }
+                    }
+                    else {
                         log("error", error);
                     }
                 });
@@ -460,6 +483,58 @@ namespace app {
                         .arg(rangeDeg)
                         .arg(minTicks)
                         .arg(maxTicks));
+    }
+
+    void MainWindow::handleBackup(const QString& port, const servo_core::ServoId id) {
+        const auto it = buses_.find(port);
+        if (it == buses_.end()) {
+            return;
+        }
+        const QString path = QFileDialog::getSaveFileName(
+            this, tr("备份参数"), QStringLiteral("servo_%1_params.json").arg(id),
+            tr("参数备份 (*.json)"));
+        if (path.isEmpty()) {
+            return;
+        }
+        it->second.bridge->backupParameters(port, id, path);
+    }
+
+    void MainWindow::handleRestore(const QString& port, const servo_core::ServoId id) {
+        const auto it = buses_.find(port);
+        if (it == buses_.end()) {
+            return;
+        }
+        const QString path = QFileDialog::getOpenFileName(this, tr("恢复参数"), QString(),
+                                                          tr("参数备份 (*.json)"));
+        if (path.isEmpty()) {
+            return;
+        }
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            log("error", "Failed to open '" + path + "'");
+            return;
+        }
+        ParamsBackup backup;
+        QString error;
+        if (!parseBackup(file.readAll(), &backup, &error)) {
+            log("error", error);
+            return;
+        }
+        const auto params = paramsForRestore(backup);
+        if (params.isEmpty()) {
+            log("warn", "Backup contains no restorable parameters");
+            return;
+        }
+        if (QMessageBox::question(
+                this, tr("恢复参数"),
+                tr("将 %1 个参数写入 %2 的舵机 %3？\n（ID 与波特率不会被恢复）")
+                    .arg(params.size())
+                    .arg(port)
+                    .arg(id),
+                QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
+            return;
+        }
+        it->second.bridge->restoreParameters(port, id, params);
     }
 
 } // namespace app

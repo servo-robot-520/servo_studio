@@ -59,6 +59,7 @@ add_executable(servo_studio
         src/app/main.cpp
         src/app/main_window.cpp
         src/app/session_bridge.cpp
+        src/app/params_backup.cpp
         src/app/panels/connection_panel.cpp
         src/app/panels/device_tree.cpp
         src/app/panels/status_table.cpp
@@ -83,4 +84,9 @@ if (BUILD_TESTING)
     add_executable(test_bus_session test/test_bus_session.cpp)
     target_link_libraries(test_bus_session PRIVATE servo_core GTest::gtest_main)
     add_test(NAME test_bus_session COMMAND test_bus_session)
+
+    add_executable(test_params_backup test/test_params_backup.cpp src/app/params_backup.cpp)
+    target_include_directories(test_params_backup PRIVATE src)
+    target_link_libraries(test_params_backup PRIVATE Qt6::Core GTest::gtest_main)
+    add_test(NAME test_params_backup COMMAND test_params_backup)
 endif ()
