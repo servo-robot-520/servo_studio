@@ -26,14 +26,19 @@
 
 ## 构建
 
-依赖：GCC 13、CMake ≥ 3.22、Qt 6（Widgets、Charts）。
+本工程是**独立 CMake 项目**，可单独构建，无需 ROS 环境。
+
+依赖：CMake ≥ 3.22、Qt 6（Widgets、Charts）、任意支持 C++20 的 GCC
+（推荐 13 及以上；测试另需 GTest，可用 `-DBUILD_TESTING=OFF` 关闭）。
 
 ```bash
 cmake -S . -B build
 cmake --build build -j
 ```
 
-- 默认使用 `g++-13`，可用 `-DCMAKE_CXX_COMPILER` 覆盖。
+- 编译器自动选择：优先 `g++-13`（约定工具链），未安装时依次回退
+  `g++-14` / `g++-15` / `g++-16` / `g++`；也可用 `-DCMAKE_CXX_COMPILER`
+  或 `CXX=` 显式指定，**不强制要求安装 g++-13**。
 - 驱动源码路径由 `-DFEETECH_DRIVER_DIR=<path>` 指定；未配置时默认从
   上一级目录寻找 `feetech_servo_ros2_control`。
 - 驱动中无 ROS 依赖的核心源文件会被编译为本工程的 `feetech_scs_core`

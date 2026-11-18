@@ -1,8 +1,12 @@
 cmake_minimum_required(VERSION 3.22)
 
-# 按约定使用 GCC 13（g++-13）构建；可用 -DCMAKE_CXX_COMPILER 覆盖。
+# 编译器选择：约定优先 g++-13；未安装时自动回退到更新的 g++（C++20 即可）。
+# 可用 -DCMAKE_CXX_COMPILER 或 CXX= 显式覆盖。
 if (NOT CMAKE_CXX_COMPILER AND NOT DEFINED ENV{CXX})
-    set(CMAKE_CXX_COMPILER g++-13)
+    find_program(SERVO_STUDIO_GXX NAMES g++-13 g++-14 g++-15 g++-16 g++)
+    if (SERVO_STUDIO_GXX)
+        set(CMAKE_CXX_COMPILER "${SERVO_STUDIO_GXX}")
+    endif ()
 endif ()
 
 project(servo_studio LANGUAGES CXX)
