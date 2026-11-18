@@ -52,8 +52,6 @@ namespace app {
         subject_label_->setObjectName("title");
         layout->addWidget(subject_label_);
 
-        auto* grid = new QGridLayout;
-        grid->setSpacing(8);
         for (size_t index = 0; index < std::size(kChannels); ++index) {
             const auto& spec = kChannels[index];
             Channel channel;
@@ -96,20 +94,86 @@ namespace app {
 
             channel.toggle = new QCheckBox(channel.title);
             channel.toggle->setChecked(true);
-            connect(channel.toggle, &QCheckBox::toggled, this,
-                    [view = channel.view](const bool checked) { view->setVisible(checked); });
+            connect(channel.toggle, &QCheckBox::toggled, this, [this] { relayout(); });
 
-            const int row = static_cast<int>(index) / 3;
-            const int column = static_cast<int>(index) % 3;
-            auto* cell = new QVBoxLayout;
+            // 容器承载复选框 + 图表，便于整体重排。
+            channel.container = new QWidget;
+            auto* cell = new QVBoxLayout(channel.container);
+            cell->setContentsMargins(0, 0, 0, 0);
             cell->setSpacing(4);
             cell->addWidget(channel.toggle, 0, Qt::AlignLeft);
             cell->addWidget(channel.view);
-            grid->addLayout(cell, row, column);
             channels_.push_back(std::move(channel));
         }
-        layout->addLayout(grid, 1);
+        grid_ = new QGridLayout;
+        grid_->setSpacing(8);
+        for (int column = 0; column < 6; ++column) {
+            grid_->setColumnStretch(column, 1);
+        }
+        layout->addLayout(grid_, 1);
+        relayout();
         clock_.start();
+    }
+
+    void ChartPanel::relayout() {
+        // 移除全部格位（保留容器控件）。
+        while (grid_->count() > 0) {
+            QLayoutItem* item = grid_->takeAt(0);
+            if (item != nullptr && item->widget() != nullptr) {
+                item->widget()->hide();
+            }
+            delete item;
+        }
+        for (int row = 0; row < 2; ++row) {
+            grid_->setRowStretch(row, 0);
+        }
+
+        std::vector<Channel*> visible;
+        for (auto& channel : channels_) {
+            if (channel.toggle->isChecked()) {
+                visible.push_back(&channel);
+            }
+        }
+        if (visible.empty()) {
+            return;
+        }
+
+        // 只剩一个通道时独占整个监控区。
+        if (visible.size() == 1) {
+            grid_->addWidget(visible.front()->container, 0, 0, 2, 6);
+            grid_->setRowStretch(0, 1);
+            grid_->setRowStretch(1, 1);
+            visible.front()->container->show();
+            return;
+        }
+
+        // 每行三个（0..2 / 3..5）为固定组，行间不搬移：
+        // 取消的格位由右侧相邻吸收，行尾缺口并入左侧相邻。
+        for (int row = 0; row < 2; ++row) {
+            std::vector<int> cells; // 本行可见通道的格位 0..2
+            for (int cell = 0; cell < 3; ++cell) {
+                if (channels_[static_cast<size_t>(row * 3 + cell)].toggle->isChecked()) {
+                    cells.push_back(cell);
+                }
+            }
+            if (cells.empty()) {
+                continue;
+            }
+            int previous = -1;
+            for (size_t index = 0; index < cells.size(); ++index) {
+                const int cell = cells[index];
+                // 可见格位 + 其左侧缺口（左侧缺口由本格右侧相邻吸收）。
+                int span = cell - previous;
+                if (index + 1 == cells.size()) {
+                    span += 2 - cell; // 行尾缺口并入最后一个可见格位。
+                }
+                grid_->addWidget(channels_[static_cast<size_t>(row * 3 + cell)].container,
+                                 row, (previous + 1) * 2, 1, span * 2);
+                channels_[static_cast<size_t>(row * 3 + cell)].container->show();
+                previous = cell;
+            }
+            grid_->setRowStretch(row, 1);
+        }
     }
 
     void ChartPanel::setSubject(const QString& port, const servo_core::ServoId id,

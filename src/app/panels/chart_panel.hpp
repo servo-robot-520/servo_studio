@@ -8,6 +8,7 @@
 #include <deque>
 #include <vector>
 
+#include "app/qt_types.hpp"
 #include "servo_core/types.hpp"
 
 class QCheckBox;
@@ -16,6 +17,7 @@ class QChartView;
 class QChart;
 class QLineSeries;
 class QValueAxis;
+class QGridLayout;
 
 namespace app {
 
@@ -51,12 +53,17 @@ namespace app {
             QValueAxis* axis_x{};
             QValueAxis* axis_y{};
             QChartView* view{};
+            QWidget* container{};
             std::deque<QPointF> points;
         };
 
         void resetSeries();
+        /// 按当前勾选状态重排小图：每行三个为固定组，取消的格位由
+        /// 右侧相邻吸收（行尾缺口并入左侧）；仅剩一个时独占整个监控区。
+        void relayout();
 
         std::vector<Channel> channels_;
+        QGridLayout* grid_;
         QLabel* subject_label_;
         QString subject_port_;
         servo_core::ServoId subject_id_{};

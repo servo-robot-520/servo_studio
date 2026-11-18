@@ -6,11 +6,8 @@
 #include <functional>
 #include <memory>
 
+#include "app/qt_types.hpp"
 #include "servo_core/bus_session.hpp"
-
-// Qt 元类型声明：跨线程 queued 投递所需。
-Q_DECLARE_METATYPE(QVector<servo_core::ServoState>)
-Q_DECLARE_METATYPE(QVector<servo_core::ServoInfo>)
 
 namespace app {
 
