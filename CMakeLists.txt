@@ -1,4 +1,10 @@
 cmake_minimum_required(VERSION 3.22)
+
+# 按约定使用 GCC 13（g++-13）构建；可用 -DCMAKE_CXX_COMPILER 覆盖。
+if (NOT CMAKE_CXX_COMPILER AND NOT DEFINED ENV{CXX})
+    set(CMAKE_CXX_COMPILER g++-13)
+endif ()
+
 project(servo_studio LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -43,6 +49,24 @@ add_executable(servo_smoke tools/servo_smoke.cpp)
 target_link_libraries(servo_smoke PRIVATE servo_backend_feetech_scs)
 
 install(TARGETS servo_smoke RUNTIME DESTINATION bin)
+
+# Qt6 GUI 应用。
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+
+add_executable(servo_studio
+        src/app/main.cpp
+        src/app/main_window.cpp
+        src/app/session_bridge.cpp
+        src/app/panels/connection_panel.cpp
+        src/app/panels/device_tree.cpp
+        src/app/panels/status_table.cpp
+        src/app/resources/app.qrc)
+target_include_directories(servo_studio PRIVATE src)
+target_link_libraries(servo_studio PRIVATE servo_backend_feetech_scs Qt6::Widgets)
+
+install(TARGETS servo_studio RUNTIME DESTINATION bin)
 
 include(CTest)
 if (BUILD_TESTING)

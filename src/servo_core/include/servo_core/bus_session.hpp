@@ -51,6 +51,11 @@ namespace servo_core {
         /// @brief 会话是否在运行。
         [[nodiscard]] bool running() const;
 
+        /// @brief 总线连接配置。
+        [[nodiscard]] const BusConfig& config() const {
+            return config_;
+        }
+
         /// @brief 提交异步命令，在工作线程串行执行。
         /// @param command 命令体；返回 Result 表示成败。
         /// @param done 完成回调（可为空）。
@@ -80,6 +85,8 @@ namespace servo_core {
         std::deque<std::function<void(IServoDriver&)>> commands_;
         std::vector<ServoId> poll_ids_;
         int poll_hz_{0};
+        // set_polling 与等待谓词的竞态标志：防止配置变化通知被谓词吞掉。
+        bool poll_config_changed_{false};
         bool stop_requested_{false};
         std::atomic<bool> running_{false};
     };

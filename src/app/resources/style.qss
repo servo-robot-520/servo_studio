@@ -1,0 +1,224 @@
+/* servo_studio 暗色扁平主题。
+   token（与 docs/design_plan.md §5 一致，禁止散落硬编码色值）：
+   --bg           #15181D   石墨蓝灰底
+   --panel        #1D222A   面板
+   --panel-raised #252C35   选中/浮起
+   --border       #323B45   分隔线
+   --ink          #DCE3EA   正文
+   --muted        #8B98A5   次要文字
+   --accent       #E8B44A   琥珀强调
+   --error        #E0685A   故障
+   --success      #7FBF7A   在线
+   层级只用三档面板明度 + 细边线；无渐变、无阴影。 */
+
+QMainWindow, QDialog {
+    background: #15181D;
+    color: #DCE3EA;
+}
+
+QWidget {
+    color: #DCE3EA;
+    font-size: 12px;
+}
+
+/* ---------- 面板 ---------- */
+
+QWidget#panel {
+    background: #1D222A;
+    border: 1px solid #323B45;
+    border-radius: 6px;
+}
+
+QLabel#muted {
+    color: #8B98A5;
+}
+
+QLabel#title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* ---------- 按钮 ---------- */
+
+QPushButton {
+    background: #252C35;
+    border: 1px solid #323B45;
+    border-radius: 6px;
+    padding: 5px 14px;
+    min-height: 20px;
+}
+
+QPushButton:hover {
+    background: #2C343E;
+}
+
+QPushButton:pressed {
+    background: #1D222A;
+}
+
+QPushButton:focus {
+    border: 2px solid #E8B44A;
+}
+
+QPushButton:disabled {
+    color: #5C6773;
+    background: #1D222A;
+}
+
+/* 主操作：琥珀描边强调。 */
+QPushButton#primary {
+    border: 1px solid #E8B44A;
+    color: #E8B44A;
+}
+
+QPushButton#primary:hover {
+    background: #2E2A20;
+}
+
+/* 急停：故障色文字，保持克制。 */
+QPushButton#danger {
+    color: #E0685A;
+    border: 1px solid #E0685A;
+}
+
+QPushButton#danger:hover {
+    background: #2E211F;
+}
+
+/* ---------- 输入控件 ---------- */
+
+QComboBox, QSpinBox, QLineEdit {
+    background: #1D222A;
+    border: 1px solid #323B45;
+    border-radius: 6px;
+    padding: 4px 8px;
+    min-height: 20px;
+    selection-background-color: #E8B44A;
+    selection-color: #15181D;
+}
+
+QComboBox:focus, QSpinBox:focus, QLineEdit:focus {
+    border: 1px solid #E8B44A;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 22px;
+}
+
+QComboBox::down-arrow {
+    image: none;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #8B98A5;
+    margin-right: 8px;
+}
+
+QComboBox QAbstractItemView {
+    background: #252C35;
+    border: 1px solid #323B45;
+    selection-background-color: #E8B44A;
+    selection-color: #15181D;
+}
+
+QSpinBox::up-button, QSpinBox::down-button {
+    background: #252C35;
+    border: none;
+    width: 18px;
+}
+
+/* ---------- 树与表 ---------- */
+
+QTreeWidget, QTableWidget {
+    background: #1D222A;
+    border: 1px solid #323B45;
+    border-radius: 6px;
+    gridline-color: #323B45;
+    alternate-background-color: #21272F;
+}
+
+QTreeWidget::item, QTableWidget::item {
+    padding: 3px 6px;
+    border: none;
+}
+
+QTreeWidget::item:selected, QTableWidget::item:selected {
+    background: #252C35;
+    color: #E8B44A;
+}
+
+QHeaderView::section {
+    background: #15181D;
+    color: #8B98A5;
+    border: none;
+    border-bottom: 1px solid #323B45;
+    border-right: 1px solid #323B45;
+    padding: 5px 8px;
+    font-weight: 600;
+}
+
+QTableWidget {
+    gridline-color: #2A323B;
+}
+
+/* 数字列等宽右对齐在代码里设置；遥测数字统一等宽字体。 */
+QTableWidget#telemetry, QTreeWidget#devices {
+    font-family: "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace;
+}
+
+/* ---------- 分割条与滚动条 ---------- */
+
+QSplitter::handle {
+    background: #15181D;
+    width: 6px;
+    height: 6px;
+}
+
+QScrollBar:vertical {
+    background: #1D222A;
+    width: 10px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background: #323B45;
+    border-radius: 4px;
+    min-height: 24px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #3D4854;
+}
+
+QScrollBar:horizontal {
+    background: #1D222A;
+    height: 10px;
+    margin: 0;
+}
+
+QScrollBar::handle:horizontal {
+    background: #323B45;
+    border-radius: 4px;
+    min-width: 24px;
+}
+
+QScrollBar::add-line, QScrollBar::sub-line {
+    height: 0;
+    width: 0;
+}
+
+QScrollBar::add-page, QScrollBar::sub-page {
+    background: none;
+}
+
+/* ---------- 状态栏 ---------- */
+
+QStatusBar {
+    background: #1D222A;
+    border-top: 1px solid #323B45;
+    color: #8B98A5;
+}
+
+QStatusBar::item {
+    border: none;
+}

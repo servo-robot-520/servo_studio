@@ -1,0 +1,51 @@
+#pragma once
+
+#include <QWidget>
+
+class QComboBox;
+class QSpinBox;
+class QPushButton;
+
+namespace app {
+
+    /// @brief 连接面板：串口/波特率/超时选择，连接、扫描与全局松扭矩。
+    class ConnectionPanel : public QWidget {
+        Q_OBJECT
+
+    public:
+        explicit ConnectionPanel(QWidget* parent = nullptr);
+
+        /// 当前表单中的串口设备。
+        [[nodiscard]] QString port() const;
+        /// 当前表单中的波特率。
+        [[nodiscard]] int baudRate() const;
+        /// 当前表单中的应答超时（毫秒）。
+        [[nodiscard]] int timeoutMs() const;
+
+    signals:
+        /// 请求连接总线。
+        void connectRequested(const QString& port, int baudRate, int timeoutMs);
+        /// 请求断开当前表单中的总线。
+        void disconnectRequested(const QString& port);
+        /// 请求扫描当前表单中的总线。
+        void scanRequested(const QString& port);
+        /// 请求全部松扭矩（急停）。
+        void stopAllRequested(const QString& port);
+
+    public slots:
+        /// 更新按钮使能：已连接时"连接"变为"断开"。
+        void setConnected(const QString& port, bool connected);
+
+    private slots:
+        void refreshPorts();
+
+    private:
+        QComboBox* port_combo_;
+        QComboBox* baud_combo_;
+        QSpinBox* timeout_spin_;
+        QPushButton* connect_button_;
+        QPushButton* scan_button_;
+        QPushButton* stop_button_;
+    };
+
+} // namespace app

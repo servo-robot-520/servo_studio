@@ -75,6 +75,7 @@ namespace servo_core {
             std::lock_guard<std::mutex> lock(mutex_);
             poll_ids_ = std::move(ids);
             poll_hz_ = (poll_ids_.empty() || hz <= 0) ? 0 : hz;
+            poll_config_changed_ = true;
         }
         cv_.notify_all();
     }
@@ -113,6 +114,7 @@ namespace servo_core {
                 if (stop_requested_) {
                     break;
                 }
+                poll_config_changed_ = false;
                 if (!commands_.empty()) {
                     command = std::move(commands_.front());
                     commands_.pop_front();
@@ -120,18 +122,20 @@ namespace servo_core {
                 else {
                     poll_ids = poll_ids_;
                     poll_hz = poll_hz_;
+                    const auto wake = [this] {
+                        return stop_requested_ || !commands_.empty() || poll_config_changed_;
+                    };
                     if (poll_hz > 0) {
                         const auto period =
                             std::chrono::microseconds(1'000'000 / static_cast<long long>(poll_hz));
-                        // 等到命令到达 / 停止 / 轮询到期；被命令唤醒则回到循环头先执行命令。
-                        if (cv_.wait_until(lock, next_poll, [this] {
-                                return stop_requested_ || !commands_.empty();
-                            })) {
+                        // 等到命令到达 / 停止 / 轮询配置变化 / 轮询到期；
+                        // 被唤醒则回到循环头重新评估。
+                        if (cv_.wait_until(lock, next_poll, wake)) {
                             continue;
                         }
                     }
                     else {
-                        cv_.wait(lock, [this] { return stop_requested_ || !commands_.empty(); });
+                        cv_.wait(lock, wake);
                         continue;
                     }
                 }

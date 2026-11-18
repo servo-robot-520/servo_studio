@@ -191,6 +191,24 @@ namespace servo_core {
             session.stop();
         }
 
+        TEST(BusSessionTest, LateSetPollingStartsPolling) {
+            // 回归：工作线程已处于空闲等待后才设置轮询，
+            // 配置变化通知不得被等待谓词吞掉（否则轮询永不启动）。
+            auto driver = std::make_unique<FakeDriver>();
+            BusSession session(std::move(driver), BusConfig{.port = "fake"});
+            ASSERT_TRUE(session.start());
+            std::atomic<int> batches{0};
+            session.set_states_handler(
+                [&batches](const std::vector<ServoState>&) { ++batches; });
+
+            // 还原竞态窗口：先让工作线程进入空闲等待，再配置轮询。
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            session.set_polling({1}, 50);
+
+            EXPECT_TRUE(wait_for([&] { return batches.load() >= 2; }));
+            session.stop();
+        }
+
         TEST(BusSessionTest, ScanPassesResultsThroughCallback) {
             auto driver = std::make_unique<FakeDriver>();
             BusSession session(std::move(driver), BusConfig{.port = "fake"});
