@@ -77,13 +77,18 @@ namespace app {
         // 动作按钮逐行排布，窄面板下不拥挤。
         goal_button_ = new QPushButton(tr("下发目标"), command_group);
         goal_button_->setObjectName("primary");
-        goal_all_button_ = new QPushButton(tr("下发到选中行"), command_group);
+        goal_all_button_ = new QPushButton(tr("下发到选中舵机"), command_group);
+        goal_protocol_button_ = new QPushButton(tr("下发到所有舵机"), command_group);
         home_button_ = new QPushButton(tr("回中"), command_group);
         goal_button_->setToolTip(tr("向当前舵机下发目标位置、速度与运行时间"));
-        goal_all_button_->setToolTip(tr("同步下发到状态表选中行的舵机；未选中时作用于当前舵机"));
+        goal_all_button_->setToolTip(tr("同步下发到状态表中选中的舵机（可多选、可跨总线）；\n"
+                                        "未选中时作用于当前舵机"));
+        goal_protocol_button_->setToolTip(tr("同步下发到当前协议的全部舵机\n"
+                                             "（所有已连接的同协议串口总线，一条串口仅支持一种协议）"));
         home_button_->setToolTip(tr("目标设为编码器中位（511）并下发"));
         form->addRow(goal_button_);
         form->addRow(goal_all_button_);
+        form->addRow(goal_protocol_button_);
         form->addRow(home_button_);
 
         range_spin_ = new QDoubleSpinBox(command_group);
@@ -134,14 +139,14 @@ namespace app {
         connect(ticks_slider_, &QSlider::sliderReleased, this, [this] {
             if (hasSubject()) {
                 emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
-                                   speed_spin_->value(), false);
+                                   speed_spin_->value(), GoalTarget::kCurrent);
             }
         });
         // 目标位置回车直接下发（仅回车触发，失焦不触发）。
         connect(ticks_spin_->findChild<QLineEdit*>(), &QLineEdit::returnPressed, this, [this] {
             if (hasSubject()) {
                 emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
-                                   speed_spin_->value(), false);
+                                   speed_spin_->value(), GoalTarget::kCurrent);
             }
         });
         // 回中：目标设为编码器中位并直接下发。
@@ -151,19 +156,25 @@ namespace app {
             }
             ticks_spin_->setValue(static_cast<int>(subject_config_.center_ticks));
             emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
-                               speed_spin_->value(), false);
+                               speed_spin_->value(), GoalTarget::kCurrent);
         });
 
         connect(goal_button_, &QPushButton::clicked, this, [this] {
             if (hasSubject()) {
                 emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
-                                   speed_spin_->value(), false);
+                                   speed_spin_->value(), GoalTarget::kCurrent);
             }
         });
         connect(goal_all_button_, &QPushButton::clicked, this, [this] {
             if (hasSubject()) {
                 emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
-                                   speed_spin_->value(), true);
+                                   speed_spin_->value(), GoalTarget::kSelection);
+            }
+        });
+        connect(goal_protocol_button_, &QPushButton::clicked, this, [this] {
+            if (hasSubject()) {
+                emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
+                                   speed_spin_->value(), GoalTarget::kAll);
             }
         });
         auto jog = [this](const double delta_deg) {

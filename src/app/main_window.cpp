@@ -238,7 +238,7 @@ namespace app {
             bridge->deleteLater();
             return;
         }
-        buses_[port] = BusEntry{session, bridge};
+        buses_[port] = BusEntry{session, bridge, "feetech_scs"};
         device_tree_->addBus(port);
         device_tree_->setBusConnected(port, true);
         connection_panel_->setConnected(port, true);
@@ -335,46 +335,64 @@ namespace app {
     }
 
     void MainWindow::handleGoal(const QString& port, const int ticks, const int timeMs,
-                                const int speed, const bool toSelection) {
-        const auto it = buses_.find(port);
-        if (it == buses_.end()) {
-            return;
+                                const int speed, const GoalTarget target) {
+        // 目标集合按总线分组：单机 / 状态表选中（可跨总线）/ 当前协议全部。
+        std::map<QString, std::vector<servo_core::ServoId>> targets;
+        if (target == GoalTarget::kCurrent) {
+            if (has_subject_ && subject_port_ == port) {
+                targets[port].push_back(subject_id_);
+            }
         }
-
-        // 目标集合：批量时取状态表选中行（同总线）；否则当前监控对象。
-        std::vector<servo_core::ServoId> ids;
-        if (toSelection) {
+        else if (target == GoalTarget::kSelection) {
             for (const auto& [row_port, id] : status_table_->selectedServos()) {
-                if (row_port == port) {
-                    ids.push_back(id);
+                targets[row_port].push_back(id);
+            }
+            if (targets.empty() && has_subject_) {
+                targets[subject_port_].push_back(subject_id_);
+            }
+        }
+        else {
+            // 当前协议 = 与当前舵机同驱动名的全部总线（一条串口一个协议）。
+            const auto subject = buses_.find(port);
+            const QString driver_name =
+                subject != buses_.end() ? subject->second.driver_name : QString("feetech_scs");
+            for (const auto& [bus_port, entry] : buses_) {
+                if (entry.driver_name != driver_name) {
+                    continue;
+                }
+                for (const auto id : device_tree_->servoIds(bus_port)) {
+                    targets[bus_port].push_back(id);
                 }
             }
         }
-        if (ids.empty() && has_subject_ && subject_port_ == port) {
-            ids.push_back(subject_id_);
-        }
-        if (ids.empty()) {
+        if (targets.empty()) {
             log("warn", "No target servo selected");
             return;
         }
 
-        if (ids.size() == 1) {
-            const auto id = ids.front();
-            it->second.bridge->submit([id, ticks, timeMs, speed](servo_core::IServoDriver& driver) {
-                return driver.write_goal(id, ticks, timeMs, speed);
-            });
-            statusBar()->showMessage(tr("已下发目标：%1 → %2 tick").arg(id).arg(ticks), 4000);
-        }
-        else {
-            const std::vector<int> positions(ids.size(), ticks);
-            const std::vector<int> speeds(ids.size(), speed);
-            it->second.bridge->submit(
-                [ids, positions, timeMs, speeds](servo_core::IServoDriver& driver) {
-                    return driver.sync_write_goals(ids, positions, timeMs, speeds);
+        int total = 0;
+        for (const auto& [bus_port, ids] : targets) {
+            const auto it = buses_.find(bus_port);
+            if (it == buses_.end() || ids.empty()) {
+                continue;
+            }
+            total += static_cast<int>(ids.size());
+            if (ids.size() == 1) {
+                const auto id = ids.front();
+                it->second.bridge->submit([id, ticks, timeMs, speed](servo_core::IServoDriver& driver) {
+                    return driver.write_goal(id, ticks, timeMs, speed);
                 });
-            statusBar()->showMessage(tr("已同步下发 %1 个目标 → %2 tick").arg(ids.size()).arg(ticks),
-                                     4000);
+            }
+            else {
+                const std::vector<int> positions(ids.size(), ticks);
+                const std::vector<int> speeds(ids.size(), speed);
+                it->second.bridge->submit(
+                    [ids, positions, timeMs, speeds](servo_core::IServoDriver& driver) {
+                        return driver.sync_write_goals(ids, positions, timeMs, speeds);
+                    });
+            }
         }
+        statusBar()->showMessage(tr("已下发 %1 个目标 → %2 tick").arg(total).arg(ticks), 4000);
     }
 
     void MainWindow::handleTorque(const QString& port, const servo_core::ServoId id,

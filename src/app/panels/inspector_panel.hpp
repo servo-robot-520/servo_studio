@@ -13,6 +13,16 @@ class QSpinBox;
 
 namespace app {
 
+    /// @brief 目标下发范围。
+    enum class GoalTarget {
+        /// 当前舵机。
+        kCurrent,
+        /// 状态表选中的舵机（可多选、可跨总线）。
+        kSelection,
+        /// 当前协议的全部舵机（所有同协议串口总线）。
+        kAll,
+    };
+
     /// @brief 检查器：选中舵机的命令区（目标位置/速度/时间/扭矩/点动/回中）
     ///        与换算配置；参数编辑在寄存器工作台弹窗（ParamsDialog）中进行。
     class InspectorPanel : public QWidget {
@@ -31,9 +41,9 @@ namespace app {
         void clear();
 
     signals:
-        /// 下发目标位置（tick）；toSelection 为真时作用于状态表全部选中行。
+        /// 下发目标位置（tick），范围由 GoalTarget 决定。
         void goalRequested(const QString& port, int ticks, int timeMs, int speed,
-                           bool toSelection);
+                           GoalTarget target);
         /// 扭矩开关。
         void torqueRequested(const QString& port, servo_core::ServoId id, bool enabled);
         /// 应用换算配置（机械行程/命令钳位）。
@@ -66,6 +76,7 @@ namespace app {
         QPushButton* apply_config_button_;
         QPushButton* goal_button_;
         QPushButton* goal_all_button_;
+        QPushButton* goal_protocol_button_;
         QPushButton* jog_minus_button_;
         QPushButton* jog_plus_button_;
         QPushButton* home_button_;

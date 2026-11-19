@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 
+#include "app/panels/inspector_panel.hpp"
 #include "app/session_bridge.hpp"
 #include "servo_core/bus_session.hpp"
 
@@ -41,7 +42,8 @@ namespace app {
         void setPollRate(int hz);
         void onServoSelected();
 
-        void handleGoal(const QString& port, int ticks, int timeMs, int speed, bool toSelection);
+        void handleGoal(const QString& port, int ticks, int timeMs, int speed,
+                        GoalTarget target);
         void handleTorque(const QString& port, servo_core::ServoId id, bool enabled);
         void handleParamWrite(const QString& port, servo_core::ServoId id, const QString& key,
                               int value, const QString& valueText);
@@ -55,6 +57,9 @@ namespace app {
         struct BusEntry {
             std::shared_ptr<servo_core::BusSession> session;
             SessionBridge* bridge;
+            /// 驱动名（协议族）：一条串口仅支持一种协议；
+            /// 多协议并存时按此过滤“下发到所有舵机”的范围。
+            QString driver_name;
         };
 
         void log(const QString& level, const QString& message);
