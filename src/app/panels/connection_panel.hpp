@@ -15,6 +15,11 @@ namespace app {
     public:
         explicit ConnectionPanel(QWidget* parent = nullptr);
 
+        /// 顶栏：协议 / 串口 / 刷新 / 波特率 / 打开。
+        [[nodiscard]] QWidget* topBar() const;
+        /// 侧栏（设备列表上方）：超时 / 轮询 / 扫描 / 全部松扭矩。
+        [[nodiscard]] QWidget* sideBar() const;
+
         /// 当前表单中的协议后端（驱动名）。
         [[nodiscard]] QString backend() const;
         /// 当前表单中的串口设备。
@@ -49,6 +54,8 @@ namespace app {
         void refreshPorts();
 
     private:
+        QWidget* top_bar_;
+        QWidget* side_bar_;
         QComboBox* backend_combo_;
         QComboBox* port_combo_;
         QComboBox* baud_combo_;

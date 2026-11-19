@@ -31,47 +31,51 @@ namespace app {
         layout->setContentsMargins(10, 10, 10, 10);
         layout->setSpacing(10);
 
+        // 顶栏一行：协议 / 串口 / 刷新 / 波特率 / 打开。
         connection_panel_ = new ConnectionPanel(central);
-        layout->addWidget(connection_panel_);
+        layout->addWidget(connection_panel_->topBar());
 
-        // 上区：设备树 | 监控区（曲线/状态表）。
-        auto* columns = new QSplitter(Qt::Horizontal, central);
-        device_tree_ = new DeviceTree(columns);
+        // 三列全高（顶栏下直达窗口底部）：设备 | 监控/日志 | 操作。
+        auto* main_split = new QSplitter(Qt::Horizontal, central);
+
+        // 左：侧栏工具条（超时/轮询/扫描/全部松扭矩）+ 设备树。
+        auto* left = new QWidget(main_split);
+        auto* left_layout = new QVBoxLayout(left);
+        left_layout->setContentsMargins(0, 0, 0, 0);
+        left_layout->setSpacing(8);
+        left_layout->addWidget(connection_panel_->sideBar());
+        device_tree_ = new DeviceTree(left);
         device_tree_->setMinimumWidth(260);
+        left_layout->addWidget(device_tree_, 1);
 
-        // 监控区：曲线在上、状态表在下。
-        auto* monitor = new QSplitter(Qt::Vertical, columns);
+        // 中：监控（曲线/状态表）在上，日志在监控下方。
+        auto* monitor_col = new QSplitter(Qt::Vertical, main_split);
+        auto* monitor = new QSplitter(Qt::Vertical, monitor_col);
         chart_panel_ = new ChartPanel(monitor);
         status_table_ = new StatusTable(monitor);
         monitor->addWidget(chart_panel_);
         monitor->addWidget(status_table_);
         monitor->setStretchFactor(0, 2);
         monitor->setStretchFactor(1, 1);
-
-        columns->addWidget(device_tree_);
-        columns->addWidget(monitor);
-        columns->setStretchFactor(0, 0);
-        columns->setStretchFactor(1, 1);
-        columns->setSizes({300, 1100});
-
-        // 下区：日志居左（不占满整行）、检查器沉底居右。
-        auto* bottom = new QSplitter(Qt::Horizontal, central);
-        log_panel_ = new LogPanel(bottom);
+        log_panel_ = new LogPanel(monitor_col);
         log_panel_->setMinimumHeight(140);
-        inspector_panel_ = new InspectorPanel(bottom);
-        bottom->addWidget(log_panel_);
-        bottom->addWidget(inspector_panel_);
-        bottom->setStretchFactor(0, 1);
-        bottom->setStretchFactor(1, 0);
-        bottom->setSizes({1000, 420});
+        monitor_col->addWidget(monitor);
+        monitor_col->addWidget(log_panel_);
+        monitor_col->setStretchFactor(0, 1);
+        monitor_col->setStretchFactor(1, 0);
+        monitor_col->setSizes({760, 220});
 
-        auto* outer = new QSplitter(Qt::Vertical, central);
-        outer->addWidget(columns);
-        outer->addWidget(bottom);
-        outer->setStretchFactor(0, 1);
-        outer->setStretchFactor(1, 0);
-        outer->setSizes({620, 340});
-        layout->addWidget(outer, 1);
+        // 右：操作（舵机操作 / 自动调试 / 编程）全高，最大化时全部可见。
+        inspector_panel_ = new InspectorPanel(main_split);
+
+        main_split->addWidget(left);
+        main_split->addWidget(monitor_col);
+        main_split->addWidget(inspector_panel_);
+        main_split->setStretchFactor(0, 0);
+        main_split->setStretchFactor(1, 1);
+        main_split->setStretchFactor(2, 0);
+        main_split->setSizes({300, 1100, 420});
+        layout->addWidget(main_split, 1);
 
         setCentralWidget(central);
         statusBar()->showMessage(tr("就绪"));
