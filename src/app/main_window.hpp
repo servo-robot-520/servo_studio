@@ -16,6 +16,7 @@ namespace app {
     class ChartPanel;
     class InspectorPanel;
     class LogPanel;
+    class ParamsDialog;
 
     /// @brief 主窗口：顶部连接面板，左侧设备树，中间监控区（曲线/状态表），
     ///        右侧检查器，底部日志。
@@ -67,6 +68,7 @@ namespace app {
         ChartPanel* chart_panel_;
         InspectorPanel* inspector_panel_;
         LogPanel* log_panel_;
+        ParamsDialog* params_dialog_;
         int poll_hz_{50};
         std::map<QString, BusEntry> buses_;
         std::map<QString, QVector<servo_core::ServoInfo>> bus_infos_;

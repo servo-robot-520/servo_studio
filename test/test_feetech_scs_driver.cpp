@@ -151,15 +151,22 @@ namespace servo_backends {
         TEST(FeetechScsDriverTest, ParametersExposeDescriptorTable) {
             FeetechScsDriver driver;
             const auto parameters = driver.parameters();
-            ASSERT_EQ(parameters.size(), 26u);
+            ASSERT_EQ(parameters.size(), 49u);
             // 描述表含 ID 与波特率，供 GUI 参数编辑器渲染。
             bool has_id = false;
             const servo_core::ParamDescriptor* baud = nullptr;
+            const servo_core::ParamDescriptor* present_position = nullptr;
             for (const auto& parameter : parameters) {
                 has_id |= parameter.key == "id";
                 if (parameter.key == "baud_rate") {
                     baud = &parameter;
                 }
+                if (parameter.key == "present_position") {
+                    present_position = &parameter;
+                }
+                // 全量表必备字段：地址、中文名、存储区域。
+                EXPECT_GE(parameter.address, 0);
+                EXPECT_FALSE(parameter.zh.empty());
             }
             EXPECT_TRUE(has_id);
             // 波特率为索引参数：值 = choices 下标，条目为实际波特率。
@@ -167,6 +174,10 @@ namespace servo_backends {
             ASSERT_EQ(baud->choices.size(), 8u);
             EXPECT_EQ(baud->choices.front(), 1000000);
             EXPECT_EQ(baud->choices.back(), 38400);
+            // 只读反馈区也在表内（寄存器工作台展示用）。
+            ASSERT_NE(present_position, nullptr);
+            EXPECT_EQ(present_position->access, servo_core::ParamAccess::kReadOnly);
+            EXPECT_EQ(present_position->area, servo_core::ParamArea::kSram);
         }
 
     } // namespace

@@ -14,6 +14,7 @@
 #include "app/panels/device_tree.hpp"
 #include "app/panels/inspector_panel.hpp"
 #include "app/panels/log_panel.hpp"
+#include "app/panels/params_dialog.hpp"
 #include "app/panels/status_table.hpp"
 #include "app/params_backup.hpp"
 #include "servo_core/registry.hpp"
@@ -82,16 +83,30 @@ namespace app {
 
         connect(inspector_panel_, &InspectorPanel::goalRequested, this, &MainWindow::handleGoal);
         connect(inspector_panel_, &InspectorPanel::torqueRequested, this, &MainWindow::handleTorque);
-        connect(inspector_panel_, &InspectorPanel::paramWriteRequested, this,
-                &MainWindow::handleParamWrite);
-        connect(inspector_panel_, &InspectorPanel::paramWriteAllRequested, this,
-                &MainWindow::handleParamWriteAll);
         connect(inspector_panel_, &InspectorPanel::servoConfigRequested, this,
                 &MainWindow::handleServoConfig);
-        connect(inspector_panel_, &InspectorPanel::backupRequested, this, &MainWindow::handleBackup);
-        connect(inspector_panel_, &InspectorPanel::restoreRequested, this,
-                &MainWindow::handleRestore);
-        connect(inspector_panel_, &InspectorPanel::reloadParametersRequested, this,
+
+        // 寄存器工作台（非模态弹窗）：全量寄存器读写。
+        params_dialog_ = new ParamsDialog(this);
+        connect(inspector_panel_, &InspectorPanel::registerRequested, this, [this] {
+            if (!has_subject_) {
+                log("warn", "No target servo selected");
+                return;
+            }
+            params_dialog_->setSubject(subject_port_, subject_id_);
+            params_dialog_->show();
+            params_dialog_->raise();
+            if (const auto it = buses_.find(subject_port_); it != buses_.end()) {
+                it->second.bridge->readParameters(subject_port_, subject_id_);
+            }
+        });
+        connect(params_dialog_, &ParamsDialog::paramWriteRequested, this,
+                &MainWindow::handleParamWrite);
+        connect(params_dialog_, &ParamsDialog::paramWriteAllRequested, this,
+                &MainWindow::handleParamWriteAll);
+        connect(params_dialog_, &ParamsDialog::backupRequested, this, &MainWindow::handleBackup);
+        connect(params_dialog_, &ParamsDialog::restoreRequested, this, &MainWindow::handleRestore);
+        connect(params_dialog_, &ParamsDialog::reloadParametersRequested, this,
                 [this](const QString& port, const servo_core::ServoId id) {
                     if (const auto it = buses_.find(port); it != buses_.end()) {
                         it->second.bridge->readParameters(port, id);
@@ -190,7 +205,7 @@ namespace app {
         connect(bridge, &SessionBridge::parametersReceived, this,
                 [this](const QString& bus_port, const int id,
                        const QVector<ParamValue>& values) {
-                    inspector_panel_->setParameters(bus_port, id, values);
+                    params_dialog_->setParameters(bus_port, id, values);
                     log("info", "Parameters loaded for servo " + QString::number(id));
                 });
         connect(bridge, &SessionBridge::commandFinished, this,
@@ -311,6 +326,8 @@ namespace app {
         }
         inspector_panel_->setSubject(port, id, configFor(port, id), max_range_deg);
         chart_panel_->setSubject(port, id, model);
+        // 寄存器弹窗跟随当前选中对象。
+        params_dialog_->setSubject(port, id);
         if (const auto it = buses_.find(port); it != buses_.end()) {
             it->second.bridge->readParameters(port, id);
         }

@@ -1,33 +1,17 @@
 #include "app/panels/inspector_panel.hpp"
 
-#include <QAbstractButton>
-#include <QApplication>
 #include <QCheckBox>
-#include <QComboBox>
-#include <QEvent>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
-#include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSlider>
 #include <QSpinBox>
-#include <QTableWidget>
 #include <QVBoxLayout>
 
 namespace app {
-
-    namespace {
-        enum ParamColumn {
-            kColumnKey = 0,
-            kColumnValue,
-            kColumnArea,
-            kColumnAction,
-            kParamColumnCount,
-        };
-    }
 
     InspectorPanel::InspectorPanel(QWidget* parent) :
         QWidget(parent) {
@@ -103,38 +87,18 @@ namespace app {
         form->addRow(tr("行程(°)"), config_row);
         layout->addWidget(command_group);
 
-        // ---------- 参数区 ----------
+        // ---------- 参数入口 ----------
         auto* param_group = new QGroupBox(tr("参数"), this);
         auto* param_layout = new QVBoxLayout(param_group);
-        auto* param_bar = new QHBoxLayout;
-        reload_button_ = new QPushButton(tr("重新读取"), param_group);
-        write_all_button_ = new QPushButton(tr("写入到全部舵机"), param_group);
-        backup_button_ = new QPushButton(tr("备份参数"), param_group);
-        restore_button_ = new QPushButton(tr("恢复参数"), param_group);
-        param_bar->addWidget(reload_button_);
-        param_bar->addWidget(write_all_button_);
-        param_bar->addStretch(1);
-        param_bar->addWidget(backup_button_);
-        param_bar->addWidget(restore_button_);
-        param_layout->addLayout(param_bar);
+        register_button_ = new QPushButton(tr("寄存器…"), param_group);
+        register_button_->setObjectName("primary");
+        auto* hint = new QLabel(tr("全量寄存器读写（地址/中英文/区域）"), param_group);
+        hint->setObjectName("muted");
+        param_layout->addWidget(register_button_);
+        param_layout->addWidget(hint);
+        layout->addWidget(param_group);
 
-        param_table_ = new QTableWidget(param_group);
-        param_table_->installEventFilter(this);
-        param_table_->setColumnCount(kParamColumnCount);
-        param_table_->setHorizontalHeaderLabels({tr("参数"), tr("值"), tr("区域"), tr("操作")});
-        param_table_->verticalHeader()->setVisible(false);
-        param_table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-        param_table_->horizontalHeader()->setMinimumSectionSize(80);
-        param_table_->horizontalHeader()->setSectionResizeMode(kColumnKey, QHeaderView::Stretch);
-        param_table_->horizontalHeader()->setSectionResizeMode(kColumnValue,
-                                                               QHeaderView::Fixed);
-        param_table_->horizontalHeader()->resizeSection(kColumnValue, 110);
-        param_table_->horizontalHeader()->setSectionResizeMode(kColumnArea,
-                                                               QHeaderView::ResizeToContents);
-        param_table_->horizontalHeader()->setSectionResizeMode(kColumnAction,
-                                                               QHeaderView::ResizeToContents);
-        param_layout->addWidget(param_table_);
-        layout->addWidget(param_group, 1);
+        layout->addStretch(1);
 
         // ---------- 信号 ----------
         connect(ticks_spin_, &QSpinBox::valueChanged, this, &InspectorPanel::onGoalValueChanged);
@@ -163,19 +127,6 @@ namespace app {
             emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
                                speed_spin_->value(), false);
         });
-
-        // 参数值点击进入编辑；换行/点击别处即提交，避免悬停滚轮误触。
-        connect(param_table_, &QTableWidget::cellClicked, this,
-                [this](const int row, const int column) {
-                    if (column == kColumnValue) {
-                        beginEdit(row);
-                    }
-                    else {
-                        commitEditor();
-                    }
-                });
-        connect(param_table_, &QTableWidget::currentCellChanged, this,
-                [this] { commitEditor(); });
 
         connect(goal_button_, &QPushButton::clicked, this, [this] {
             if (hasSubject()) {
@@ -206,33 +157,8 @@ namespace app {
                                           min_ticks_spin_->value(), max_ticks_spin_->value());
             }
         });
-        connect(reload_button_, &QPushButton::clicked, this, [this] {
-            if (hasSubject()) {
-                emit reloadParametersRequested(subject_port_, subject_id_);
-            }
-        });
-        connect(write_all_button_, &QPushButton::clicked, this, [this] {
-            const int row = param_table_->currentRow();
-            if (!hasSubject() || row < 0) {
-                return;
-            }
-            commitEditor();
-            if (row >= static_cast<int>(param_rows_.size())) {
-                return;
-            }
-            const ParamValue& parameter = param_rows_[row];
-            emit paramWriteAllRequested(subject_port_, parameter.key, parameter.value);
-        });
-        connect(backup_button_, &QPushButton::clicked, this, [this] {
-            if (hasSubject()) {
-                emit backupRequested(subject_port_, subject_id_);
-            }
-        });
-        connect(restore_button_, &QPushButton::clicked, this, [this] {
-            if (hasSubject()) {
-                emit restoreRequested(subject_port_, subject_id_);
-            }
-        });
+        connect(register_button_, &QPushButton::clicked, this,
+                [this] { emit registerRequested(); });
     }
 
     bool InspectorPanel::hasSubject() const {
@@ -266,12 +192,10 @@ namespace app {
         range_spin_->setRange(0.1, max_range_deg_);
         updateConfig(config);
         ticks_spin_->setValue(static_cast<int>(config.center_ticks));
-        param_table_->setRowCount(0);
     }
 
     void InspectorPanel::clear() {
         has_subject_ = false;
-        param_table_->setRowCount(0);
     }
 
     void InspectorPanel::onGoalValueChanged() {
@@ -281,149 +205,6 @@ namespace app {
         }
         deg_label_->setText(QStringLiteral("= %1°").arg(
             servo_core::ticks_to_degrees(subject_config_, ticks_spin_->value()), 0, 'f', 2));
-    }
-
-    void InspectorPanel::setParameters(const QString& port, const int id,
-                                       const QVector<ParamValue>& values) {
-        if (!has_subject_ || port != subject_port_ || id != subject_id_) {
-            return;
-        }
-        rebuildParameterRows(values);
-    }
-
-    QString valueTextFor(const ParamValue& parameter) {
-        if (!parameter.valid) {
-            return "--";
-        }
-        if (!parameter.choices.isEmpty() && parameter.value >= 0 &&
-            parameter.value < parameter.choices.size()) {
-            return QString::number(parameter.choices[parameter.value]);
-        }
-        return QString::number(parameter.value);
-    }
-
-    void InspectorPanel::rebuildParameterRows(const QVector<ParamValue>& values) {
-        commitEditor();
-        param_rows_.assign(values.begin(), values.end());
-        param_table_->setRowCount(values.size());
-        for (int row = 0; row < values.size(); ++row) {
-            const ParamValue& parameter = param_rows_[row];
-
-            auto* key_item = new QTableWidgetItem(
-                parameter.unit.isEmpty() ? parameter.key
-                                         : QStringLiteral("%1 (%2)").arg(parameter.key,
-                                                                         parameter.unit));
-            key_item->setFlags(key_item->flags() & ~Qt::ItemIsEditable);
-            key_item->setToolTip(parameter.label);
-
-            auto* value_item = new QTableWidgetItem(valueTextFor(parameter));
-            value_item->setFlags(value_item->flags() & ~Qt::ItemIsEditable);
-
-            param_table_->setItem(row, kColumnKey, key_item);
-            param_table_->setItem(row, kColumnValue, value_item);
-            param_table_->setItem(row, kColumnArea,
-                                  new QTableWidgetItem(parameter.eeprom ? tr("EEPROM") : tr("RAM")));
-
-            auto* write_button = new QPushButton(tr("写入"));
-            param_table_->setCellWidget(row, kColumnAction, write_button);
-            connect(write_button, &QPushButton::clicked, this, [this, row] {
-                if (!hasSubject()) {
-                    return;
-                }
-                commitEditor();
-                if (row >= static_cast<int>(param_rows_.size())) {
-                    return;
-                }
-                const ParamValue& parameter = param_rows_[row];
-                emit paramWriteRequested(subject_port_, subject_id_, parameter.key,
-                                         parameter.value, valueTextFor(parameter));
-            });
-        }
-    }
-
-    void InspectorPanel::beginEdit(const int row) {
-        if (editing_row_ == row) {
-            return;
-        }
-        commitEditor();
-        if (row < 0 || row >= static_cast<int>(param_rows_.size())) {
-            return;
-        }
-        const ParamValue& parameter = param_rows_[row];
-        QWidget* editor = nullptr;
-        if (!parameter.choices.isEmpty()) {
-            // 语义：参数值 = choices 的下标；条目文本为该取值的实际含义。
-            auto* combo = new QComboBox;
-            for (int index = 0; index < parameter.choices.size(); ++index) {
-                combo->addItem(QString::number(parameter.choices[index]), index);
-            }
-            if (parameter.value >= 0 && parameter.value < parameter.choices.size()) {
-                combo->setCurrentIndex(parameter.value);
-            }
-            editor = combo;
-        }
-        else {
-            auto* spin = new QSpinBox;
-            spin->setRange(parameter.min, parameter.max);
-            spin->setValue(parameter.value);
-            editor = spin;
-        }
-        editor->installEventFilter(this);
-        param_table_->setCellWidget(row, kColumnValue, editor);
-        editing_row_ = row;
-        editor->setFocus();
-    }
-
-    void InspectorPanel::commitEditor() {
-        if (editing_row_ < 0) {
-            return;
-        }
-        const int row = editing_row_;
-        editing_row_ = -1;
-        QWidget* editor = param_table_->cellWidget(row, kColumnValue);
-        if (editor == nullptr || row >= static_cast<int>(param_rows_.size())) {
-            return;
-        }
-        ParamValue& parameter = param_rows_[row];
-        if (const auto* combo = qobject_cast<QComboBox*>(editor)) {
-            parameter.value = combo->currentData().toInt();
-        }
-        else if (const auto* spin = qobject_cast<QSpinBox*>(editor)) {
-            parameter.value = spin->value();
-        }
-        parameter.valid = true;
-        param_table_->removeCellWidget(row, kColumnValue);
-        editor->deleteLater();
-        param_table_->item(row, kColumnValue)->setText(valueTextFor(parameter));
-    }
-
-    bool InspectorPanel::eventFilter(QObject* watched, QEvent* event) {
-        // 编辑控件未获焦点时忽略滚轮，杜绝悬停滚动误改值。
-        if (event->type() == QEvent::Wheel && watched->isWidgetType() &&
-            !static_cast<QWidget*>(watched)->hasFocus()) {
-            return true;
-        }
-        // 编辑控件失焦即提交；焦点真正离开表格族时清除选中高亮，
-        // 让行恢复与未编辑状态一致的样式。焦点移到表格内部（编辑控件）
-        // 不算离开，避免编辑刚打开就被收掉。
-        if (event->type() == QEvent::FocusOut) {
-            QWidget* next = QApplication::focusWidget();
-            const bool left_table = next == nullptr || !param_table_->isAncestorOf(next);
-            if (watched == param_table_) {
-                if (left_table) {
-                    commitEditor();
-                    param_table_->clearSelection();
-                }
-            }
-            else if (watched->isWidgetType() &&
-                     param_table_->isAncestorOf(static_cast<QWidget*>(watched))) {
-                commitEditor();
-                if (left_table) {
-                    param_table_->clearSelection();
-                }
-            }
-        }
-        return QWidget::eventFilter(watched, event);
     }
 
 } // namespace app

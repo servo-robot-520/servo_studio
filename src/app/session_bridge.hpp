@@ -17,8 +17,14 @@ namespace app {
         QString key;
         /// 英文显示名。
         QString label;
+        /// 中文显示名。
+        QString zh;
         /// 单位。
         QString unit;
+        /// 存储区域（EPROM/SRAM/DEFAULT）。
+        QString area;
+        /// 寄存器地址。
+        int address{-1};
         /// 最小取值。
         int min{};
         /// 最大取值。
@@ -27,6 +33,8 @@ namespace app {
         int value{};
         /// 读取是否成功。
         bool valid{false};
+        /// 是否只读。
+        bool read_only{false};
         /// 是否 EEPROM 参数。
         bool eeprom{false};
         /// 枚举取值表；空为自由取值。

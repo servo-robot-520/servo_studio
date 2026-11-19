@@ -1,6 +1,7 @@
 #include "app/session_bridge.hpp"
 
 #include <QFile>
+#include <algorithm>
 
 #include "app/params_backup.hpp"
 
@@ -87,10 +88,24 @@ namespace app {
                     ParamValue entry;
                     entry.key = QString::fromStdString(descriptor.key);
                     entry.label = QString::fromStdString(descriptor.label);
+                    entry.zh = QString::fromStdString(descriptor.zh);
                     entry.unit = QString::fromStdString(descriptor.unit);
+                    entry.address = descriptor.address;
                     entry.min = descriptor.min;
                     entry.max = descriptor.max;
+                    entry.read_only = descriptor.access == servo_core::ParamAccess::kReadOnly;
                     entry.eeprom = descriptor.access == servo_core::ParamAccess::kEeprom;
+                    switch (descriptor.area) {
+                    case servo_core::ParamArea::kEeprom:
+                        entry.area = "EPROM";
+                        break;
+                    case servo_core::ParamArea::kSram:
+                        entry.area = "SRAM";
+                        break;
+                    case servo_core::ParamArea::kDefault:
+                        entry.area = "DEFAULT";
+                        break;
+                    }
                     entry.choices = QVector<int>(descriptor.choices.begin(), descriptor.choices.end());
                     if (const auto value = driver.read_param(id, descriptor.key)) {
                         entry.value = value.value();
@@ -155,9 +170,17 @@ namespace app {
         auto written = std::make_shared<int>(0);
         submit(
             [id, params, written](servo_core::IServoDriver& driver) {
+                // 只写当前描述表已知的键；旧备份中的废弃键跳过而不是中断恢复。
+                std::vector<std::string> known;
+                for (const auto& descriptor : driver.parameters()) {
+                    known.push_back(descriptor.key);
+                }
                 for (auto it = params.constBegin(); it != params.constEnd(); ++it) {
-                    if (const auto result = driver.write_param(id, it.key().toStdString(), it.value());
-                        !result) {
+                    const std::string key = it.key().toStdString();
+                    if (std::find(known.begin(), known.end(), key) == known.end()) {
+                        continue;
+                    }
+                    if (const auto result = driver.write_param(id, key, it.value()); !result) {
                         return result;
                     }
                     ++*written;

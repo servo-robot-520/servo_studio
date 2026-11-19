@@ -113,16 +113,29 @@ namespace servo_core {
         kEeprom,
     };
 
+    /// @brief 存储区域（显示用，与访问方式正交）。
+    enum class ParamArea {
+        kEeprom,
+        kSram,
+        kDefault,
+    };
+
     /// @brief 中立参数元数据；厂商差异（寄存器地址、字宽）由后端内部处理。
     struct ParamDescriptor {
         /// 键名（snake_case，跨厂商稳定）。
         std::string key;
         /// 英文显示名。
         std::string label;
+        /// 中文显示名。
+        std::string zh;
         /// 单位；无单位为空字符串。
         std::string unit;
         /// 存储区/访问方式。
         ParamAccess access;
+        /// 存储区域。
+        ParamArea area;
+        /// 寄存器地址（显示用）。
+        int address{-1};
         /// 最小取值。
         int min{};
         /// 最大取值。

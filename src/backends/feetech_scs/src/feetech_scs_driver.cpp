@@ -36,6 +36,18 @@ namespace servo_backends {
             return core::ParamAccess::kRam;
         }
 
+        core::ParamArea to_area(const scs::ParamArea area) {
+            switch (area) {
+            case scs::ParamArea::kEeprom:
+                return core::ParamArea::kEeprom;
+            case scs::ParamArea::kSram:
+                return core::ParamArea::kSram;
+            case scs::ParamArea::kDefault:
+                return core::ParamArea::kDefault;
+            }
+            return core::ParamArea::kSram;
+        }
+
         // 驱动侧 Result → 中间层 Result。
         core::Result to_result(const scs::Result& result) {
             return result ? core::Result::success() : core::Result::failure(result.error());
@@ -228,8 +240,11 @@ namespace servo_backends {
             descriptors.push_back(ParamDescriptor{
                 .key = descriptor.key,
                 .label = descriptor.label,
+                .zh = descriptor.zh,
                 .unit = descriptor.unit,
                 .access = to_access(descriptor.access),
+                .area = to_area(descriptor.area),
+                .address = descriptor.address,
                 .min = descriptor.min,
                 .max = descriptor.max,
                 .choices = descriptor.choices != nullptr
