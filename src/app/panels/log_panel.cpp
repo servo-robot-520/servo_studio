@@ -1,6 +1,8 @@
 #include "app/panels/log_panel.hpp"
 
 #include <QComboBox>
+
+#include <algorithm>
 #include <QFileDialog>
 #include <QLabel>
 #include <QPushButton>
@@ -74,14 +76,33 @@ namespace app {
         entries_.push_back({.level = level, .text = QStringLiteral("[%1] [%2] %3")
                             .arg(QTime::currentTime().toString("HH:mm:ss.zzz"), level,
                                  text)});
-        if (entries_.size() > kMaxEntries) {
-            entries_.erase(entries_.begin());
-            if (flushed_ > 0) {
-                --flushed_;
-            }
-        }
+        ++level_counts_[level];
+        evictOverflow();
         if (!flush_timer_->isActive()) {
             flush_timer_->start();
+        }
+    }
+
+    void LogPanel::evictOverflow() {
+        while (entries_.size() > kMaxEntries) {
+            // trace 不缓存、优先淘汰；无 trace 时淘汰超出缓存配额的最旧条目，
+            // 其余级别保证保留最近 kCachedPerLevel 条——切换级别仍可见。
+            auto victim = std::find_if(entries_.begin(), entries_.end(),
+                                       [](const Entry& entry) { return entry.level == "trace"; });
+            if (victim == entries_.end()) {
+                victim = std::find_if(entries_.begin(), entries_.end(), [this](const Entry& entry) {
+                    return level_counts_[entry.level] > kCachedPerLevel;
+                });
+            }
+            if (victim == entries_.end()) {
+                return; // 剩余条目均在缓存保护内
+            }
+            const auto index = static_cast<size_t>(victim - entries_.begin());
+            --level_counts_[victim->level];
+            entries_.erase(victim);
+            if (flushed_ > index) {
+                --flushed_;
+            }
         }
     }
 
@@ -134,6 +155,7 @@ namespace app {
 
     void LogPanel::clearEntries() {
         entries_.clear();
+        level_counts_.clear();
         flushed_ = 0;
         view_->clear();
     }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QWidget>
+#include <map>
 #include <vector>
 
 class QComboBox;
@@ -38,15 +39,20 @@ namespace app {
         };
 
         void appendEntry(const QString& level, const QString& text);
+        /// 超限驱逐：trace 不缓存优先淘汰；其余级别保证保留最近 kCachedPerLevel 条。
+        void evictOverflow();
         [[nodiscard]] static QString hexBytes(const QByteArray& data);
 
         QComboBox* filter_;
         QTextEdit* view_;
         QTimer* flush_timer_;
         std::vector<Entry> entries_;
+        std::map<QString, size_t> level_counts_;
         size_t flushed_{0};
 
         static constexpr int kMaxEntries = 2000;
+        /// 驱逐时各级（trace 除外）保证保留的最近条数。
+        static constexpr size_t kCachedPerLevel = 20;
         static constexpr int kFlushIntervalMs = 100;
     };
 
