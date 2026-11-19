@@ -7,6 +7,8 @@
 `SessionBridge` 信号），通过 `servo_core` 中间层预留对其他厂商舵机
 （如磁编码器版本）的支持。
 
+![servo_studio 主界面](docs/main_window.png)
+
 ## 功能
 
 - **连接管理**：串口枚举（by-id 优先）、波特率、应答超时，多总线并存
@@ -34,8 +36,13 @@
 （推荐 13 及以上；测试另需 GTest，可用 `-DBUILD_TESTING=OFF` 关闭）。
 
 ```bash
+# 开发构建（含测试）
 cmake -S . -B build
 cmake --build build -j
+
+# Release 构建（发布用）
+cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+cmake --build build-release -j
 ```
 
 - 编译器自动选择：优先 `g++-13`（约定工具链），未安装时依次回退

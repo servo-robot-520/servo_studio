@@ -25,7 +25,8 @@ namespace app {
 
     MainWindow::MainWindow(QWidget* parent) :
         QMainWindow(parent) {
-        setWindowTitle(tr("servo_studio"));
+        setWindowTitle(QStringLiteral("servo_studio v%1")
+                            .arg(QStringLiteral(SERVO_STUDIO_VERSION)));
         resize(1440, 820);
 
         auto* central = new QWidget(this);

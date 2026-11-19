@@ -1,5 +1,6 @@
 // servo_studio 桌面上位机入口。
 #include <QFile>
+#include <QIcon>
 
 #include "app/button_focus_filter.hpp"
 #include "app/main_window.hpp"
@@ -10,6 +11,7 @@
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
     QApplication::setApplicationName("servo_studio");
+    QApplication::setWindowIcon(QIcon(":/icon.png"));
 
     // 鼠标点击按钮后清除滞留的焦点描边（键盘焦点不受影响）。
     auto* focus_filter = new app::ButtonFocusFilter(&app);

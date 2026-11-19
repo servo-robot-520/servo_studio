@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.22)
-set(PROJECT_VERSION 0.0.1)
 
 # 编译器选择：约定优先 g++-13；未安装时自动回退到更新的 g++（C++20 即可）。
 # 可用 -DCMAKE_CXX_COMPILER 或 CXX= 显式覆盖。
@@ -10,7 +9,7 @@ if (NOT CMAKE_CXX_COMPILER AND NOT DEFINED ENV{CXX})
     endif ()
 endif ()
 
-project(servo_studio LANGUAGES CXX)
+project(servo_studio VERSION 0.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -75,6 +74,8 @@ add_executable(servo_studio
         src/app/panels/log_panel.cpp
         src/app/resources/app.qrc)
 target_include_directories(servo_studio PRIVATE src)
+# 应用版本取自 CMakeLists 的 PROJECT_VERSION，窗口标题显示。
+target_compile_definitions(servo_studio PRIVATE SERVO_STUDIO_VERSION="${PROJECT_VERSION}")
 target_link_libraries(servo_studio PRIVATE servo_backend_feetech_scs Qt6::Widgets Qt6::Charts)
 
 install(TARGETS servo_studio RUNTIME DESTINATION bin)
