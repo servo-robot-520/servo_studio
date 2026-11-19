@@ -40,7 +40,7 @@ namespace app {
 
         ticks_spin_ = new QSpinBox(command_group);
         ticks_spin_->setRange(0, 1023);
-        ticks_spin_->setToolTip(tr("目标位置（tick），511 为中位；回车直接下发"));
+        ticks_spin_->setToolTip(tr("目标位置（tick）；回车直接下发"));
         deg_label_ = new QLabel("= 0.00°", command_group);
         deg_label_->setObjectName("muted");
         auto* position_row = new QHBoxLayout;
@@ -391,6 +391,9 @@ namespace app {
         auto_end_spin_->setRange(static_cast<int>(config.min_ticks),
                                  static_cast<int>(config.max_ticks));
         // 中位与行程上限随舵机编码器几何而异（SCS 511/300°、STS 2048/…），提示动态计算。
+        ticks_spin_->setToolTip(
+            tr("目标位置（tick），%1 为中位；回车直接下发")
+                .arg(static_cast<int>(config.center_ticks)));
         home_button_->setToolTip(
             tr("目标设为编码器中位（%1）并下发").arg(static_cast<int>(config.center_ticks)));
         range_spin_->setToolTip(

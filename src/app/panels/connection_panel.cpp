@@ -13,6 +13,11 @@ namespace app {
 
     ConnectionPanel::ConnectionPanel(QWidget* parent) :
         QWidget(parent) {
+        // 根布局承载两个子区；嵌入主窗口时子区被重新挂载。
+        auto* root = new QVBoxLayout(this);
+        root->setContentsMargins(0, 0, 0, 0);
+        root->setSpacing(6);
+
         // 顶栏一行：协议 / 串口 / 刷新 / 波特率 / 打开。
         top_bar_ = new QWidget(this);
         auto* row = new QHBoxLayout(top_bar_);
@@ -69,6 +74,7 @@ namespace app {
         });
         row->addWidget(connect_button_);
         row->addStretch(1);
+        root->addWidget(top_bar_);
 
         // 侧栏（设备列表上方）：超时 / 轮询 / 扫描 / 全部松扭矩。
         side_bar_ = new QWidget(this);
@@ -102,16 +108,17 @@ namespace app {
         scan_button_->setEnabled(false);
         connect(scan_button_, &QPushButton::clicked, this,
                 [this] { emit scanRequested(port()); });
-        row2->addWidget(scan_button_);
+        // 两按钮等宽填满侧栏行。
+        row2->addWidget(scan_button_, 1);
         stop_button_ = new QPushButton(tr("全部松扭矩"), side_bar_);
         stop_button_->setObjectName("danger");
         stop_button_->setToolTip(tr("急停：关闭总线上全部舵机的力矩输出，输出轴自由"));
         stop_button_->setEnabled(false);
         connect(stop_button_, &QPushButton::clicked, this,
                 [this] { emit stopAllRequested(port()); });
-        row2->addWidget(stop_button_);
-        row2->addStretch(1);
+        row2->addWidget(stop_button_, 1);
         side->addLayout(row2);
+        root->addWidget(side_bar_);
 
         refreshPorts();
     }

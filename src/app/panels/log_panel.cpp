@@ -1,6 +1,7 @@
 #include "app/panels/log_panel.hpp"
 
 #include <QComboBox>
+#include <QDate>
 #include <QFile>
 #include <QFileDialog>
 #include <QHBoxLayout>
@@ -116,8 +117,10 @@ namespace app {
     }
 
     void LogPanel::exportEntries() {
-        const QString path = QFileDialog::getSaveFileName(this, tr("导出日志"), "servo_studio.log",
-                                                          tr("日志文件 (*.log *.txt)"));
+        const QString path = QFileDialog::getSaveFileName(
+            this, tr("导出日志"),
+            QStringLiteral("servo_studio_%1.log").arg(QDate::currentDate().toString("yyyyMMdd")),
+            tr("日志文件 (*.log *.txt)"));
         if (path.isEmpty()) {
             return;
         }
