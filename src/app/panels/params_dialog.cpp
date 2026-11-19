@@ -1,5 +1,4 @@
 #include "app/panels/params_dialog.hpp"
-#include "app/wheel_focus_filter.hpp"
 
 #include <QApplication>
 #include <QComboBox>
@@ -105,9 +104,6 @@ namespace app {
                 emit reloadParametersRequested(port_, id_);
             }
         });
-        // 输入控件滚轮守卫（对象级）。
-        WheelFocusFilter::attachTree(this);
-
         connect(write_all_button_, &QPushButton::clicked, this, [this] {
             const int row = table_->currentRow();
             if (!has_subject_ || row < 0) {
