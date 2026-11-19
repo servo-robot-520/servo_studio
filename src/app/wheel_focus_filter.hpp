@@ -16,6 +16,16 @@ namespace app {
     public:
         using QObject::QObject;
 
+        /// 把共享过滤器挂到控件树的每个对象上（对象级过滤，
+        /// 与寄存器弹窗同款、实测可靠；应用级过滤保留兜底）。
+        static void attachTree(QWidget* root) {
+            static WheelFocusFilter shared;
+            root->installEventFilter(&shared);
+            for (auto* widget : root->findChildren<QWidget*>()) {
+                widget->installEventFilter(&shared);
+            }
+        }
+
     protected:
         bool eventFilter(QObject* watched, QEvent* event) override {
             if (event->type() == QEvent::Wheel && watched->isWidgetType()) {

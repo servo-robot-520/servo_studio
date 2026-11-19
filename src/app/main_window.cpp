@@ -16,6 +16,7 @@
 #include "app/panels/log_panel.hpp"
 #include "app/panels/params_dialog.hpp"
 #include "app/panels/status_table.hpp"
+#include "app/wheel_focus_filter.hpp"
 #include "app/params_backup.hpp"
 #include "servo_core/registry.hpp"
 
@@ -80,6 +81,9 @@ namespace app {
 
         setCentralWidget(central);
         statusBar()->showMessage(tr("就绪"));
+
+        // 输入控件滚轮守卫：对象级过滤（覆盖内部行编辑）。
+        WheelFocusFilter::attachTree(this);
 
         connect(connection_panel_, &ConnectionPanel::connectRequested, this, &MainWindow::connectBus);
         connect(connection_panel_, &ConnectionPanel::disconnectRequested, this,
