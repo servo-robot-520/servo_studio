@@ -75,9 +75,12 @@ namespace app {
         header->setSectionResizeMode(kColumnZh, QHeaderView::ResizeToContents);
         header->setSectionResizeMode(kColumnValue, QHeaderView::Fixed);
         header->resizeSection(kColumnValue, 110);
-        header->setSectionResizeMode(kColumnArea, QHeaderView::ResizeToContents);
+        header->setSectionResizeMode(kColumnArea, QHeaderView::Fixed);
+        header->resizeSection(kColumnArea, 110);
         header->setSectionResizeMode(kColumnAction, QHeaderView::Interactive);
-        header->resizeSection(kColumnAction, 80);
+        header->resizeSection(kColumnAction, 110);
+        // 加大行高，写入按钮不再顶满单元格。
+        table_->verticalHeader()->setDefaultSectionSize(38);
         layout->addWidget(table_, 1);
 
         // 点击值列进入编辑；换行/点击别处即提交，避免悬停滚轮误触。
@@ -162,7 +165,9 @@ namespace app {
             table_->setItem(row, kColumnArea, make_item(parameter.area));
 
             if (parameter.read_only) {
-                table_->setItem(row, kColumnAction, make_item(tr("只读")));
+                auto* read_only_item = make_item(tr("只读"));
+                read_only_item->setTextAlignment(Qt::AlignCenter);
+                table_->setItem(row, kColumnAction, read_only_item);
                 continue;
             }
             auto* write_button = new QPushButton(tr("写入"));
