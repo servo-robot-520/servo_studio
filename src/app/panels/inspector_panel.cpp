@@ -1,6 +1,10 @@
 #include "app/panels/inspector_panel.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 #include <QComboBox>
+#include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -8,6 +12,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSignalBlocker>
 #include <QSlider>
 #include <QSpinBox>
 #include <QTimer>
@@ -163,23 +168,72 @@ namespace app {
         auto* auto_group = new QGroupBox(tr("自动调试"), this);
         auto* auto_form = new QFormLayout(auto_group);
 
+        // 起点/终点/步长：tick 与角度双输入，实时双向换算（角度含中位，
+        // 步长为位移量按比例换算）。
         auto_start_spin_ = new QSpinBox(auto_group);
+        auto_start_spin_->setObjectName("autoStartTicks");
         auto_start_spin_->setRange(0, 1023);
-        auto_start_spin_->setToolTip(tr("自动动作的起始位置（tick）"));
+        auto_start_spin_->setToolTip(tr("自动动作的起始位置（tick），与角度输入实时换算"));
         auto_start_spin_->setValue(400);
-        auto_form->addRow(tr("起点(tick)"), auto_start_spin_);
+        auto_start_deg_spin_ = new QDoubleSpinBox(auto_group);
+        auto_start_deg_spin_->setObjectName("autoStartDeg");
+        auto_start_deg_spin_->setDecimals(2);
+        auto_start_deg_spin_->setSuffix(QStringLiteral("°"));
+        auto_start_deg_spin_->setToolTip(tr("自动动作的起始位置（度），与 tick 输入实时换算"));
+        auto* start_row = new QHBoxLayout;
+        start_row->addWidget(auto_start_spin_, 1);
+        start_row->addWidget(auto_start_deg_spin_, 1);
+        auto_form->addRow(tr("起点(tick/°)"), start_row);
 
         auto_end_spin_ = new QSpinBox(auto_group);
+        auto_end_spin_->setObjectName("autoEndTicks");
         auto_end_spin_->setRange(0, 1023);
-        auto_end_spin_->setToolTip(tr("自动动作的终点位置（tick）"));
+        auto_end_spin_->setToolTip(tr("自动动作的终点位置（tick），与角度输入实时换算"));
         auto_end_spin_->setValue(600);
-        auto_form->addRow(tr("终点(tick)"), auto_end_spin_);
+        auto_end_deg_spin_ = new QDoubleSpinBox(auto_group);
+        auto_end_deg_spin_->setObjectName("autoEndDeg");
+        auto_end_deg_spin_->setDecimals(2);
+        auto_end_deg_spin_->setSuffix(QStringLiteral("°"));
+        auto_end_deg_spin_->setToolTip(tr("自动动作的终点位置（度），与 tick 输入实时换算"));
+        auto* end_row = new QHBoxLayout;
+        end_row->addWidget(auto_end_spin_, 1);
+        end_row->addWidget(auto_end_deg_spin_, 1);
+        auto_form->addRow(tr("终点(tick/°)"), end_row);
 
         auto_step_spin_ = new QSpinBox(auto_group);
+        auto_step_spin_->setObjectName("autoStepTicks");
         auto_step_spin_->setRange(1, 512);
         auto_step_spin_->setValue(10);
-        auto_step_spin_->setToolTip(tr("步进模式每周期的位移（tick），用于回差/精度检查"));
-        auto_form->addRow(tr("步长(tick)"), auto_step_spin_);
+        auto_step_spin_->setToolTip(tr("步进模式每周期的位移（tick），与角度输入实时换算"));
+        auto_step_deg_spin_ = new QDoubleSpinBox(auto_group);
+        auto_step_deg_spin_->setObjectName("autoStepDeg");
+        auto_step_deg_spin_->setDecimals(2);
+        auto_step_deg_spin_->setSuffix(QStringLiteral("°"));
+        auto_step_deg_spin_->setToolTip(tr("步进模式每周期的位移（度），与 tick 输入实时换算"));
+        auto* step_row = new QHBoxLayout;
+        step_row->addWidget(auto_step_spin_, 1);
+        step_row->addWidget(auto_step_deg_spin_, 1);
+        auto_form->addRow(tr("步长(tick/°)"), step_row);
+
+        // 初始量程须覆盖负角度（默认 0..99.99 会钳位），随后按换算配置收窄。
+        auto_start_deg_spin_->setRange(-360.0, 360.0);
+        auto_end_deg_spin_->setRange(-360.0, 360.0);
+        auto_step_deg_spin_->setRange(0.01, 360.0);
+        syncAutoDegreesFromTicks();
+
+        // 双向同步：tick 变更回写角度，角度变更回写 tick（信号阻断防回环）。
+        connect(auto_start_spin_, &QSpinBox::valueChanged, this,
+                [this] { syncAutoDegreesFromTicks(); });
+        connect(auto_end_spin_, &QSpinBox::valueChanged, this,
+                [this] { syncAutoDegreesFromTicks(); });
+        connect(auto_step_spin_, &QSpinBox::valueChanged, this,
+                [this] { syncAutoDegreesFromTicks(); });
+        connect(auto_start_deg_spin_, &QDoubleSpinBox::valueChanged, this,
+                [this] { syncAutoTicksFromDegrees(); });
+        connect(auto_end_deg_spin_, &QDoubleSpinBox::valueChanged, this,
+                [this] { syncAutoTicksFromDegrees(); });
+        connect(auto_step_deg_spin_, &QDoubleSpinBox::valueChanged, this,
+                [this] { syncAutoTicksFromDegrees(); });
 
         auto_interval_spin_ = new QSpinBox(auto_group);
         auto_interval_spin_->setRange(20, 10000);
@@ -402,6 +456,20 @@ namespace app {
                                    static_cast<int>(config.max_ticks));
         auto_end_spin_->setRange(static_cast<int>(config.min_ticks),
                                  static_cast<int>(config.max_ticks));
+        // 自动调试角度输入按当前换算配置刷新；区间变更的钳位不参与同步。
+        const double deg_low = servo_core::ticks_to_degrees(config, config.min_ticks);
+        const double deg_high = servo_core::ticks_to_degrees(config, config.max_ticks);
+        {
+            const QSignalBlocker block_start(auto_start_deg_spin_);
+            const QSignalBlocker block_end(auto_end_deg_spin_);
+            const QSignalBlocker block_step(auto_step_deg_spin_);
+            auto_start_deg_spin_->setRange(std::min(deg_low, deg_high),
+                                           std::max(deg_low, deg_high));
+            auto_end_deg_spin_->setRange(std::min(deg_low, deg_high),
+                                         std::max(deg_low, deg_high));
+            auto_step_deg_spin_->setRange(0.01, max_range_deg_);
+        }
+        syncAutoDegreesFromTicks();
         // 中位与行程上限随舵机编码器几何而异（SCS 511/300°、STS 2048/…），提示动态计算。
         ticks_spin_->setToolTip(
             tr("目标位置（tick），%1 为中位；回车直接下发")
@@ -435,6 +503,36 @@ namespace app {
     void InspectorPanel::clear() {
         stopAutoMotion();
         has_subject_ = false;
+    }
+
+    void InspectorPanel::syncAutoDegreesFromTicks() const {
+        const QSignalBlocker block_start(auto_start_deg_spin_);
+        const QSignalBlocker block_end(auto_end_deg_spin_);
+        const QSignalBlocker block_step(auto_step_deg_spin_);
+        auto_start_deg_spin_->setValue(
+            servo_core::ticks_to_degrees(subject_config_, auto_start_spin_->value()));
+        auto_end_deg_spin_->setValue(
+            servo_core::ticks_to_degrees(subject_config_, auto_end_spin_->value()));
+        const double full_scale =
+            subject_config_.full_scale_ticks > 0 ? subject_config_.full_scale_ticks : 1024.0;
+        // 步长是位移量：仅按比例换算，不含中位偏移。
+        auto_step_deg_spin_->setValue(auto_step_spin_->value() * subject_config_.range_deg /
+                                      full_scale);
+    }
+
+    void InspectorPanel::syncAutoTicksFromDegrees() const {
+        const QSignalBlocker block_start(auto_start_spin_);
+        const QSignalBlocker block_end(auto_end_spin_);
+        const QSignalBlocker block_step(auto_step_spin_);
+        auto_start_spin_->setValue(
+            servo_core::degrees_to_ticks(subject_config_, auto_start_deg_spin_->value()));
+        auto_end_spin_->setValue(
+            servo_core::degrees_to_ticks(subject_config_, auto_end_deg_spin_->value()));
+        const double full_scale =
+            subject_config_.full_scale_ticks > 0 ? subject_config_.full_scale_ticks : 1024.0;
+        const long step = std::lround(auto_step_deg_spin_->value() * full_scale /
+                                      subject_config_.range_deg);
+        auto_step_spin_->setValue(static_cast<int>(std::clamp(step, 1L, 512L)));
     }
 
     void InspectorPanel::onGoalValueChanged() const {

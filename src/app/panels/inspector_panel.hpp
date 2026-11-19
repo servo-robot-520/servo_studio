@@ -66,6 +66,10 @@ namespace app {
         [[nodiscard]] bool hasSubject() const;
         /// 启动自动动作（sweep=往复，否则步进）；互斥，运行中先停。
         void startAutoMotion(bool sweep);
+        /// 自动调试 tick → 角度（起点/终点含中位，步长按比例）。
+        void syncAutoDegreesFromTicks() const;
+        /// 自动调试 角度 → tick（双向同步的回写方向）。
+        void syncAutoTicksFromDegrees() const;
         /// 停止自动动作并恢复按钮。
         void stopAutoMotion();
         /// 自动动作与手动目标控件互斥：运行期间禁用手动目标控件。
@@ -101,6 +105,9 @@ namespace app {
         QSpinBox* auto_start_spin_;
         QSpinBox* auto_end_spin_;
         QSpinBox* auto_step_spin_;
+        QDoubleSpinBox* auto_start_deg_spin_;
+        QDoubleSpinBox* auto_end_deg_spin_;
+        QDoubleSpinBox* auto_step_deg_spin_;
         QSpinBox* auto_interval_spin_;
         QPushButton* sweep_button_;
         QPushButton* setp_button_;
