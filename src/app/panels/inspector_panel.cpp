@@ -29,6 +29,7 @@ namespace app {
         scroll->setFrameShape(QFrame::NoFrame);
         scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         auto* content = new QWidget(scroll);
+        content->setObjectName("panelContent");
         auto* layout = new QVBoxLayout(content);
         layout->setContentsMargins(0, 0, 4, 0);
         layout->setSpacing(10);

@@ -74,7 +74,8 @@ namespace app {
         main_split->setStretchFactor(0, 0);
         main_split->setStretchFactor(1, 1);
         main_split->setStretchFactor(2, 0);
-        main_split->setSizes({300, 1100, 420});
+        // 左右两侧等宽。
+        main_split->setSizes({320, 1160, 320});
         layout->addWidget(main_split, 1);
 
         setCentralWidget(central);

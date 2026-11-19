@@ -40,6 +40,7 @@ QLabel#title {
 
 /* 组标题与 QLabel#title 保持同一视觉层级。 */
 QGroupBox {
+    background: #15181D;
     border: 1px solid #323B45;
     border-radius: 6px;
     margin-top: 12px;
@@ -213,6 +214,26 @@ QTextEdit {
     selection-color: #15181D;
 }
 
+/* ---------- 滑杆 ---------- */
+
+QSlider::groove:horizontal {
+    height: 4px;
+    background: #323B45;
+    border-radius: 2px;
+}
+
+QSlider::handle:horizontal {
+    width: 14px;
+    height: 14px;
+    margin: -5px 0;
+    background: #DCE3EA;
+    border-radius: 7px;
+}
+
+QSlider::handle:horizontal:hover {
+    background: #E8B44A;
+}
+
 /* ---------- 分割条与滚动条 ---------- */
 
 QChartView {
@@ -263,9 +284,15 @@ QScrollBar::add-page, QScrollBar::sub-page {
     background: none;
 }
 
-QScrollArea#panelScroll {
-    background: transparent;
+/* 滚动区与内容显式用窗体底色：分组框 margin 等留白处不露浅底 */
+QScrollArea#panelScroll,
+QScrollArea#panelScroll::viewport {
+    background: #15181D;
     border: none;
+}
+
+QWidget#panelContent {
+    background: #15181D;
 }
 
 /* ---------- 悬停提示 ---------- */
