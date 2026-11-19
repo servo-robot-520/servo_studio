@@ -15,7 +15,8 @@ namespace app {
 
     InspectorPanel::InspectorPanel(QWidget* parent) :
         QWidget(parent) {
-        setMinimumWidth(320);
+        // 允许缩窄，把横向空间让给监控区。
+        setMinimumWidth(240);
         auto* layout = new QVBoxLayout(this);
         layout->setContentsMargins(0, 0, 0, 0);
         layout->setSpacing(10);
@@ -26,15 +27,26 @@ namespace app {
 
         ticks_spin_ = new QSpinBox(command_group);
         ticks_spin_->setRange(0, 1023);
-        ticks_slider_ = new QSlider(Qt::Horizontal, command_group);
-        ticks_slider_->setRange(0, 1023);
         deg_label_ = new QLabel("= 0.00°", command_group);
         deg_label_->setObjectName("muted");
         auto* position_row = new QHBoxLayout;
         position_row->addWidget(ticks_spin_);
         position_row->addWidget(deg_label_);
-        position_row->addWidget(ticks_slider_, 1);
+        position_row->addStretch(1);
         form->addRow(tr("目标位置(tick)"), position_row);
+
+        // 滑杆与点动独立成行，点动位于目标位置与滑杆之下。
+        ticks_slider_ = new QSlider(Qt::Horizontal, command_group);
+        ticks_slider_->setRange(0, 1023);
+        form->addRow(ticks_slider_);
+
+        jog_minus_button_ = new QPushButton(tr("−1°"), command_group);
+        jog_plus_button_ = new QPushButton(tr("+1°"), command_group);
+        auto* jog_row = new QHBoxLayout;
+        jog_row->addWidget(jog_minus_button_);
+        jog_row->addWidget(jog_plus_button_);
+        jog_row->addStretch(1);
+        form->addRow(jog_row);
 
         speed_spin_ = new QSpinBox(command_group);
         speed_spin_->setRange(0, 1000);
@@ -45,21 +57,6 @@ namespace app {
         time_spin_->setRange(0, 9999);
         form->addRow(tr("运行时间(ms)"), time_spin_);
 
-        auto* goal_row = new QHBoxLayout;
-        goal_button_ = new QPushButton(tr("下发目标"), command_group);
-        goal_button_->setObjectName("primary");
-        goal_all_button_ = new QPushButton(tr("下发到选中行"), command_group);
-        home_button_ = new QPushButton(tr("回中"), command_group);
-        jog_minus_button_ = new QPushButton(tr("−1°"), command_group);
-        jog_plus_button_ = new QPushButton(tr("+1°"), command_group);
-        goal_row->addWidget(goal_button_);
-        goal_row->addWidget(goal_all_button_);
-        goal_row->addWidget(home_button_);
-        goal_row->addStretch(1);
-        goal_row->addWidget(jog_minus_button_);
-        goal_row->addWidget(jog_plus_button_);
-        form->addRow(goal_row);
-
         torque_check_ = new QCheckBox(tr("扭矩输出"), command_group);
         connect(torque_check_, &QCheckBox::toggled, this, [this](const bool enabled) {
             if (hasSubject()) {
@@ -68,23 +65,34 @@ namespace app {
         });
         form->addRow(torque_check_);
 
+        // 动作按钮逐行排布，窄面板下不拥挤。
+        goal_button_ = new QPushButton(tr("下发目标"), command_group);
+        goal_button_->setObjectName("primary");
+        goal_all_button_ = new QPushButton(tr("下发到选中行"), command_group);
+        home_button_ = new QPushButton(tr("回中"), command_group);
+        form->addRow(goal_button_);
+        form->addRow(goal_all_button_);
+        form->addRow(home_button_);
+
         range_spin_ = new QDoubleSpinBox(command_group);
         range_spin_->setRange(0.1, 360.0);
         range_spin_->setDecimals(1);
         range_spin_->setValue(300.0);
+        form->addRow(tr("行程(°)"), range_spin_);
+
         min_ticks_spin_ = new QSpinBox(command_group);
         max_ticks_spin_ = new QSpinBox(command_group);
         max_ticks_spin_->setMaximum(65535);
         max_ticks_spin_->setValue(1023);
+        auto* clamp_row = new QHBoxLayout;
+        clamp_row->addWidget(min_ticks_spin_);
+        clamp_row->addWidget(new QLabel("～", command_group));
+        clamp_row->addWidget(max_ticks_spin_);
+        clamp_row->addStretch(1);
+        form->addRow(tr("钳位(tick)"), clamp_row);
+
         apply_config_button_ = new QPushButton(tr("应用"), command_group);
-        auto* config_row = new QHBoxLayout;
-        config_row->addWidget(range_spin_);
-        config_row->addWidget(new QLabel(tr("钳位"), command_group));
-        config_row->addWidget(min_ticks_spin_);
-        config_row->addWidget(max_ticks_spin_);
-        config_row->addWidget(apply_config_button_);
-        config_row->addStretch(1);
-        form->addRow(tr("行程(°)"), config_row);
+        form->addRow(apply_config_button_);
         layout->addWidget(command_group);
 
         // ---------- 参数入口 ----------

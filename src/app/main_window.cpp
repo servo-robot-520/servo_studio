@@ -48,7 +48,6 @@ namespace app {
         monitor->setStretchFactor(1, 1);
 
         inspector_panel_ = new InspectorPanel(columns);
-        inspector_panel_->setMinimumWidth(420);
 
         columns->addWidget(device_tree_);
         columns->addWidget(monitor);
@@ -56,6 +55,8 @@ namespace app {
         columns->setStretchFactor(0, 0);
         columns->setStretchFactor(1, 1);
         columns->setStretchFactor(2, 0);
+        // 初始三栏把更多空间给监控区。
+        columns->setSizes({300, 900, 300});
 
         // 底部日志条。
         auto* outer = new QSplitter(Qt::Vertical, central);
