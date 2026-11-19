@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
+set(PROJECT_VERSION 0.0.1)
 
 # 编译器选择：约定优先 g++-13；未安装时自动回退到更新的 g++（C++20 即可）。
 # 可用 -DCMAKE_CXX_COMPILER 或 CXX= 显式覆盖。
