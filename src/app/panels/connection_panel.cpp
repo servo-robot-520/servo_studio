@@ -43,6 +43,7 @@ namespace app {
         port_combo_->setMinimumContentsLength(12);
         port_combo_->setMinimumWidth(180);
         port_combo_->setEditable(true);
+        port_combo_->setFixedWidth(380);
         row->addWidget(port_combo_, 1);
 
         auto* refresh = new QPushButton(tr("刷新"), top_bar_);

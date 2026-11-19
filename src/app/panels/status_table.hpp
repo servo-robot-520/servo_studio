@@ -22,6 +22,8 @@ namespace app {
         void clearAll();
         /// 当前选中行的舵机；无选中时返回 false。
         [[nodiscard]] bool selectedServo(QString* port, servo_core::ServoId* id) const;
+        /// 选中指定舵机所在行（选中联动用；无匹配时为空操作）。
+        void selectServo(const QString& port, servo_core::ServoId id);
         /// 全部选中行的舵机（多选批量操作用）。
         [[nodiscard]] QVector<QPair<QString, servo_core::ServoId>> selectedServos() const;
 

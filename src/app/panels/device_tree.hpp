@@ -26,6 +26,8 @@ namespace app {
         [[nodiscard]] QVector<servo_core::ServoId> servoIds(const QString& port) const;
         /// 当前选中的舵机；选中总线节点或无选中时返回 false。
         [[nodiscard]] bool selectedServo(QString* port, servo_core::ServoId* id) const;
+        /// 选中指定舵机节点（选中联动用；无匹配时为空操作）。
+        void selectServo(const QString& port, servo_core::ServoId id);
 
     private:
         [[nodiscard]] QTreeWidgetItem* busItem(const QString& port) const;

@@ -1,5 +1,6 @@
 #include "app/main_window.hpp"
 
+#include <QSignalBlocker>
 #include <ranges>
 
 #include <QCloseEvent>
@@ -365,6 +366,15 @@ namespace app {
         has_subject_ = true;
         subject_port_ = port;
         subject_id_ = id;
+        // 选中联动：设备树与状态表高亮同步（阻断目标信号防回环）。
+        if (sender() == status_table_) {
+            const QSignalBlocker block(device_tree_);
+            device_tree_->selectServo(port, id);
+        }
+        else {
+            const QSignalBlocker block(status_table_);
+            status_table_->selectServo(port, id);
+        }
 
         QString model = "unknown";
         double max_range_deg = 360.0;

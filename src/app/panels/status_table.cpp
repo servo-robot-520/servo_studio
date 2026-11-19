@@ -108,6 +108,15 @@ namespace app {
         return true;
     }
 
+    void StatusTable::selectServo(const QString& port, const servo_core::ServoId id) {
+        const int row = findRow(port, id);
+        if (row < 0) {
+            return;
+        }
+        selectRow(row);
+        scrollToItem(item(row, 0));
+    }
+
     QVector<QPair<QString, servo_core::ServoId>> StatusTable::selectedServos() const {
         QVector<QPair<QString, servo_core::ServoId>> result;
         for (const auto& range : selectedRanges()) {

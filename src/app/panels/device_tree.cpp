@@ -104,4 +104,19 @@ namespace app {
         return true;
     }
 
+    void DeviceTree::selectServo(const QString& port, const servo_core::ServoId id) {
+        QTreeWidgetItem* bus = busItem(port);
+        if (bus == nullptr) {
+            return;
+        }
+        for (int i = 0; i < bus->childCount(); ++i) {
+            QTreeWidgetItem* child = bus->child(i);
+            if (static_cast<servo_core::ServoId>(child->data(0, kServoIdRole).toUInt()) == id) {
+                setCurrentItem(child);
+                scrollToItem(child);
+                return;
+            }
+        }
+    }
+
 } // namespace app
