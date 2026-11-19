@@ -19,9 +19,9 @@ namespace app {
         /// 移除总线及其舵机节点。
         void removeBus(const QString& port);
         /// 更新总线连接状态。
-        void setBusConnected(const QString& port, bool connected);
+        void setBusConnected(const QString& port, bool connected) const;
         /// 设置某总线的在线舵机列表（覆盖式更新）。
-        void setServos(const QString& port, const QVector<servo_core::ServoInfo>& infos);
+        void setServos(const QString& port, const QVector<servo_core::ServoInfo>& infos) const;
         /// 某总线当前登记的舵机 id。
         [[nodiscard]] QVector<servo_core::ServoId> servoIds(const QString& port) const;
         /// 当前选中的舵机；选中总线节点或无选中时返回 false。

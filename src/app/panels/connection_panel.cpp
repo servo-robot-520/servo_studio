@@ -170,7 +170,7 @@ namespace app {
         scan_button_->setEnabled(!scanning && connect_button_->property("connected").toBool());
     }
 
-    void ConnectionPanel::setConnected(const QString& port, const bool connected) {
+    void ConnectionPanel::setConnected(const QString& port, const bool connected) const {
         if (port != this->port()) {
             return;
         }
@@ -183,12 +183,12 @@ namespace app {
         baud_combo_->setEnabled(!connected);
     }
 
-    void ConnectionPanel::refreshPorts() {
+    void ConnectionPanel::refreshPorts() const {
         const QString current = port_combo_->currentText();
         port_combo_->clear();
 
         // 优先展示稳定的 by-id 名称，再列出设备节点。
-        QDir by_id("/dev/serial/by-id");
+        const QDir by_id("/dev/serial/by-id");
         QStringList ports;
         if (by_id.exists()) {
             ports = by_id.entryList(QDir::System | QDir::Files, QDir::Name);
@@ -196,7 +196,7 @@ namespace app {
                 entry = by_id.filePath(entry);
             }
         }
-        QDir dev("/dev");
+        const QDir dev("/dev");
         ports += dev.entryList({"ttyUSB*", "ttyACM*"}, QDir::System | QDir::Readable, QDir::Name);
         port_combo_->addItems(ports);
         if (!current.isEmpty()) {

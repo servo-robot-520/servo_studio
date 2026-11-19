@@ -50,8 +50,7 @@ namespace app {
         int row = 0;
         for (; row < rowCount(); ++row) {
             const QString row_port = item(row, kColumnPort)->text();
-            const int row_id = item(row, kColumnId)->text().toInt();
-            if (row_port > port || (row_port == port && row_id > state.id)) {
+            if (const int row_id = item(row, kColumnId)->text().toInt(); row_port > port || (row_port == port && row_id > state.id)) {
                 break;
             }
         }

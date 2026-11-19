@@ -1,13 +1,9 @@
 #include "app/panels/log_panel.hpp"
 
 #include <QComboBox>
-#include <QDate>
-#include <QFile>
 #include <QFileDialog>
-#include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
-#include <QTextCursor>
 #include <QTextEdit>
 #include <QTime>
 #include <QTimer>
@@ -74,10 +70,10 @@ namespace app {
         appendEntry("trace", QStringLiteral("%1 %2 %3").arg(port, direction, hexBytes(frame)));
     }
 
-    void LogPanel::appendEntry(const QString& level, QString text) {
-        entries_.push_back({level, QStringLiteral("[%1] [%2] %3")
-                                       .arg(QTime::currentTime().toString("HH:mm:ss.zzz"), level,
-                                            std::move(text))});
+    void LogPanel::appendEntry(const QString& level, const QString& text) {
+        entries_.push_back({.level = level, .text = QStringLiteral("[%1] [%2] %3")
+                            .arg(QTime::currentTime().toString("HH:mm:ss.zzz"), level,
+                                 text)});
         if (entries_.size() > kMaxEntries) {
             entries_.erase(entries_.begin());
             if (flushed_ > 0) {
@@ -93,11 +89,11 @@ namespace app {
         const QString filter = filter_->currentText();
         QString text;
         for (size_t index = flushed_; index < entries_.size(); ++index) {
-            const auto& entry = entries_[index];
-            if (filter != tr("全部") && entry.level != filter) {
+            const auto& [l, t] = entries_[index];
+            if (filter != tr("全部") && l != filter) {
                 continue;
             }
-            text += entry.text;
+            text += t;
             text += '\n';
         }
         if (!text.isEmpty()) {
@@ -129,8 +125,8 @@ namespace app {
             appendEntry("error", "Failed to open '" + path + "' for writing");
             return;
         }
-        for (const auto& entry : entries_) {
-            file.write(entry.text.toUtf8());
+        for (const auto& [l, t] : entries_) {
+            file.write(t.toUtf8());
             file.write("\n");
         }
         appendEntry("info", "Log exported to " + path);

@@ -33,6 +33,9 @@ namespace app {
         explicit InspectorPanel(QWidget* parent = nullptr);
 
         /// 设置监控对象并按配置初始化换算；同一对象重复调用为空操作。
+        /// @param port
+        /// @param id
+        /// @param config
         /// @param maxRangeDeg 型号允许的最大机械行程，约束行程输入。
         void setSubject(const QString& port, servo_core::ServoId id,
                         const servo_core::ServoConfig& config, double maxRangeDeg = 360.0);
@@ -55,7 +58,7 @@ namespace app {
         void registerRequested();
 
     private slots:
-        void onGoalValueChanged();
+        void onGoalValueChanged() const;
 
     private:
         [[nodiscard]] bool hasSubject() const;
@@ -64,7 +67,7 @@ namespace app {
         /// 停止自动动作并恢复按钮。
         void stopAutoMotion();
         /// 自动动作与手动目标控件互斥：运行期间禁用手动目标控件。
-        void setManualGoalControlsEnabled(bool enabled);
+        void setManualGoalControlsEnabled(bool enabled) const;
 
         QString subject_port_;
         servo_core::ServoId subject_id_{};

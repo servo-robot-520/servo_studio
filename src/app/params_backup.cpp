@@ -1,6 +1,5 @@
 #include "app/params_backup.hpp"
 
-#include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
 
@@ -8,7 +7,7 @@ namespace app {
 
     namespace {
         constexpr int kFormatVersion = 1;
-        constexpr const char* kFormatName = "servo_studio.params";
+        constexpr auto kFormatName = "servo_studio.params";
     }
 
     QByteArray serializeBackup(const ParamsBackup& backup) {

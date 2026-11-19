@@ -1,6 +1,5 @@
 #pragma once
 
-#include <QAbstractSpinBox>
 #include <QApplication>
 #include <QComboBox>
 #include <QEvent>
@@ -22,19 +21,18 @@ namespace app {
     public:
         using QObject::QObject;
 
-    protected:
         bool eventFilter(QObject* watched, QEvent* event) override {
             if (event->type() != QEvent::Wheel) {
                 return QObject::eventFilter(watched, event);
             }
             if (!watched->isWidgetType()) {
                 // 派发前的顶层阶段：指针下控件尚未被滚轮偷走焦点。
-                const auto* wheel = static_cast<const QWheelEvent*>(event);
-                if (isUnfocusedInput(QApplication::widgetAt(wheel->globalPosition().toPoint()))) {
+                if (const auto* wheel = dynamic_cast<const QWheelEvent*>(event);
+                    isUnfocusedInput(QApplication::widgetAt(wheel->globalPosition().toPoint()))) {
                     return true;
                 }
             }
-            else if (isUnfocusedInput(static_cast<QWidget*>(watched))) {
+            else if (isUnfocusedInput(dynamic_cast<QWidget*>(watched))) {
                 // 直送控件的滚轮（合成事件等）：按所属输入控件的焦点取舍。
                 return true;
             }

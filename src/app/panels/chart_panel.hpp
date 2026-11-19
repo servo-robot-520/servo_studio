@@ -1,14 +1,10 @@
 #pragma once
 
-#include <QColor>
 #include <QElapsedTimer>
-#include <QPointF>
-#include <QString>
 #include <QWidget>
 #include <deque>
 #include <vector>
 
-#include "app/qt_types.hpp"
 #include "servo_core/types.hpp"
 
 class QCheckBox;

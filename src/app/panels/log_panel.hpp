@@ -37,7 +37,7 @@ namespace app {
             QString text;
         };
 
-        void appendEntry(const QString& level, QString text);
+        void appendEntry(const QString& level, const QString& text);
         [[nodiscard]] static QString hexBytes(const QByteArray& data);
 
         QComboBox* filter_;

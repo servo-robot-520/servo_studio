@@ -54,14 +54,14 @@ namespace servo_core {
         /// @brief 写目标位置（原始计数，按配置钳位）、运行时间、速度与加速度。
         ///        acc 仅对带加速度寄存器的系列有意义（SMS/STS）；SCS 系列忽略。
         virtual Result write_goal(ServoId id, int position_ticks, int time_ms,
-                                  int speed_ticks_s, int acc = 0) = 0;
+                                  int speed_ticks_s, int acc) = 0;
 
         /// @brief 多舵机同步下发目标位置（SYNC WRITE 类操作）。
         ///        acc 语义同 write_goal。
         virtual Result sync_write_goals(const std::vector<ServoId>& ids,
                                         const std::vector<int>& positions_ticks, int time_ms,
                                         const std::vector<int>& speeds_ticks_s,
-                                        int acc = 0) = 0;
+                                        int acc) = 0;
 
         /// @brief 扭矩开关。
         virtual Result set_torque(ServoId id, bool enabled) = 0;

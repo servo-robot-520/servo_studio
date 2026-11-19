@@ -66,7 +66,7 @@ namespace app {
         void scan(int first_id, int last_id);
 
         /// @brief 设置轮询集合与频率（Hz，0 停止）。
-        void setPolling(const std::vector<servo_core::ServoId>& ids, int hz);
+        void setPolling(const std::vector<servo_core::ServoId>& ids, int hz) const;
 
         /// @brief 提交异步命令；结果经 commandFinished 信号返回，
         ///        done 为可选的完成回调（工作线程触发）。

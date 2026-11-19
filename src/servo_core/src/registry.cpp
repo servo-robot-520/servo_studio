@@ -1,5 +1,7 @@
 #include "servo_core/registry.hpp"
 
+#include <ranges>
+
 namespace servo_core {
 
     DriverRegistry& DriverRegistry::instance() {
@@ -22,7 +24,7 @@ namespace servo_core {
     std::vector<std::string> DriverRegistry::names() const {
         std::vector<std::string> result;
         result.reserve(factories_.size());
-        for (const auto& [name, factory] : factories_) {
+        for (const auto& name : factories_ | std::views::keys) {
             result.push_back(name);
         }
         return result;

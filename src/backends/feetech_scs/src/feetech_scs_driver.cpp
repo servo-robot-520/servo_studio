@@ -56,7 +56,7 @@ namespace servo_backends {
     } // namespace
 
     FeetechScsDriver::~FeetechScsDriver() {
-        close();
+        FeetechScsDriver::close();
     }
 
     Result FeetechScsDriver::open(const core::BusConfig& config) {
@@ -143,8 +143,7 @@ namespace servo_backends {
         std::vector<ServoInfo> infos;
         infos.reserve(ids.value().size());
         for (const auto id : ids.value()) {
-            const auto identity = protocol_->read_identity(id);
-            if (identity) {
+            if (const auto identity = protocol_->read_identity(id)) {
                 infos.push_back(to_info(id, identity.value()));
             }
             else {

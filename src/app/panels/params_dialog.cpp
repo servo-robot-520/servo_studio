@@ -3,7 +3,6 @@
 #include <QApplication>
 #include <QComboBox>
 #include <QEvent>
-#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
 #include <QPushButton>
@@ -152,7 +151,7 @@ namespace app {
     void ParamsDialog::rebuildRows(const QVector<ParamValue>& values) {
         commitEditor();
         rows_.assign(values.begin(), values.end());
-        table_->setRowCount(values.size());
+        table_->setRowCount(static_cast<int>(values.size()));
         for (int row = 0; row < values.size(); ++row) {
             const ParamValue& parameter = rows_[row];
 
@@ -250,12 +249,12 @@ namespace app {
     bool ParamsDialog::eventFilter(QObject* watched, QEvent* event) {
         // 编辑控件未获焦点时忽略滚轮，杜绝悬停滚动误改值。
         if (event->type() == QEvent::Wheel && watched->isWidgetType() &&
-            !static_cast<QWidget*>(watched)->hasFocus()) {
+            !dynamic_cast<QWidget*>(watched)->hasFocus()) {
             return true;
         }
         // 编辑控件失焦即提交；焦点真正离开表格族时清除选中高亮。
         if (event->type() == QEvent::FocusOut) {
-            QWidget* next = QApplication::focusWidget();
+            const QWidget* next = QApplication::focusWidget();
             const bool left_table = next == nullptr || !table_->isAncestorOf(next);
             if (watched == table_) {
                 if (left_table) {
@@ -264,7 +263,7 @@ namespace app {
                 }
             }
             else if (watched->isWidgetType() &&
-                     table_->isAncestorOf(static_cast<QWidget*>(watched))) {
+                     table_->isAncestorOf(dynamic_cast<QWidget*>(watched))) {
                 commitEditor();
                 if (left_table) {
                     table_->clearSelection();

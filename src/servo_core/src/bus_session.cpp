@@ -59,8 +59,7 @@ namespace servo_core {
     void BusSession::submit(std::function<Result(IServoDriver&)> command, DoneHandler done) {
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            commands_.push_back(
-                [command = std::move(command), done = std::move(done)](IServoDriver& driver) mutable {
+            commands_.emplace_back([command = std::move(command), done = std::move(done)](IServoDriver& driver) mutable {
                     const auto result = command(driver);
                     if (done) {
                         done(result);
@@ -126,8 +125,7 @@ namespace servo_core {
                         return stop_requested_ || !commands_.empty() || poll_config_changed_;
                     };
                     if (poll_hz > 0) {
-                        const auto period =
-                            std::chrono::microseconds(1'000'000 / static_cast<long long>(poll_hz));
+                        std::chrono::microseconds(1'000'000 / static_cast<long long>(poll_hz));
                         // 等到命令到达 / 停止 / 轮询配置变化 / 轮询到期；
                         // 被唤醒则回到循环头重新评估。
                         if (cv_.wait_until(lock, next_poll, wake)) {
@@ -150,8 +148,7 @@ namespace servo_core {
             std::vector<ServoState> states;
             states.reserve(poll_ids.size());
             for (const auto id : poll_ids) {
-                const auto state = driver_->read_state(id);
-                if (state) {
+                if (const auto state = driver_->read_state(id)) {
                     states.push_back(state.value());
                 }
                 else {

@@ -11,7 +11,6 @@
 #include <QSlider>
 #include <QSpinBox>
 #include <QTimer>
-#include <QVBoxLayout>
 
 namespace app {
 
@@ -363,7 +362,7 @@ namespace app {
         setManualGoalControlsEnabled(true);
     }
 
-    void InspectorPanel::setManualGoalControlsEnabled(const bool enabled) {
+    void InspectorPanel::setManualGoalControlsEnabled(const bool enabled) const {
         // 自动动作每周期覆盖目标，与手动目标控件互斥。
         ticks_spin_->setEnabled(enabled);
         ticks_slider_->setEnabled(enabled);
@@ -427,7 +426,7 @@ namespace app {
         has_subject_ = false;
     }
 
-    void InspectorPanel::onGoalValueChanged() {
+    void InspectorPanel::onGoalValueChanged() const {
         if (!has_subject_) {
             deg_label_->setText("= 0.00°");
             return;

@@ -22,7 +22,7 @@ namespace app {
     }
 
     void DeviceTree::addBus(const QString& port) {
-        if (buses_.count(port) != 0) {
+        if (buses_.contains(port)) {
             return;
         }
         auto* item = new QTreeWidgetItem(this);
@@ -47,14 +47,14 @@ namespace app {
         return it == buses_.end() ? nullptr : it->second;
     }
 
-    void DeviceTree::setBusConnected(const QString& port, const bool connected) {
+    void DeviceTree::setBusConnected(const QString& port, const bool connected) const {
         if (auto* item = busItem(port)) {
             item->setText(3, connected ? tr("已连接") : tr("未连接"));
             item->setForeground(3, QColor(connected ? "#7FBF7A" : "#8B98A5"));
         }
     }
 
-    void DeviceTree::setServos(const QString& port, const QVector<servo_core::ServoInfo>& infos) {
+    void DeviceTree::setServos(const QString& port, const QVector<servo_core::ServoInfo>& infos) const {
         auto* bus = busItem(port);
         if (bus == nullptr) {
             return;

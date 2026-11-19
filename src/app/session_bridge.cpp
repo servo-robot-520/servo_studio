@@ -55,7 +55,7 @@ namespace app {
                        });
     }
 
-    void SessionBridge::setPolling(const std::vector<servo_core::ServoId>& ids, const int hz) {
+    void SessionBridge::setPolling(const std::vector<servo_core::ServoId>& ids, const int hz) const {
         if (session_) {
             session_->set_polling(ids, hz);
         }
@@ -156,8 +156,8 @@ namespace app {
                 if (success) {
                     emit logReceived("info",
                                      QStringLiteral("Parameters of servo %1 backed up to %2")
-                                         .arg(id)
-                                         .arg(path));
+                                     .arg(id)
+                                     .arg(path));
                 }
             });
     }
@@ -177,7 +177,7 @@ namespace app {
                 }
                 for (auto it = params.constBegin(); it != params.constEnd(); ++it) {
                     const std::string key = it.key().toStdString();
-                    if (std::find(known.begin(), known.end(), key) == known.end()) {
+                    if (std::ranges::find(known, key) == known.end()) {
                         continue;
                     }
                     if (const auto result = driver.write_param(id, key, it.value()); !result) {

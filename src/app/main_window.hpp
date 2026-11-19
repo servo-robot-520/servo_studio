@@ -3,10 +3,9 @@
 #include <QMainWindow>
 #include <map>
 #include <memory>
-#include <vector>
 
-#include "app/panels/inspector_panel.hpp"
 #include "app/session_bridge.hpp"
+#include "app/panels/inspector_panel.hpp"
 #include "servo_core/bus_session.hpp"
 
 namespace app {
@@ -63,7 +62,7 @@ namespace app {
             QString driver_name;
         };
 
-        void log(const QString& level, const QString& message);
+        void log(const QString& level, const QString& message) const;
         void applyPolling(const QString& port);
         [[nodiscard]] servo_core::ServoConfig configFor(const QString& port,
                                                         servo_core::ServoId id) const;

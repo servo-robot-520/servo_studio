@@ -1,7 +1,6 @@
 #include "app/main_window.hpp"
 
 #include <QCloseEvent>
-#include <QFile>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QSplitter>
@@ -9,6 +8,7 @@
 #include <QVBoxLayout>
 #include <cstdio>
 
+#include "app/params_backup.hpp"
 #include "app/panels/chart_panel.hpp"
 #include "app/panels/connection_panel.hpp"
 #include "app/panels/device_tree.hpp"
@@ -16,7 +16,6 @@
 #include "app/panels/log_panel.hpp"
 #include "app/panels/params_dialog.hpp"
 #include "app/panels/status_table.hpp"
-#include "app/params_backup.hpp"
 #include "servo_core/registry.hpp"
 
 namespace app {
@@ -130,19 +129,19 @@ namespace app {
     }
 
     MainWindow::~MainWindow() {
-        for (auto& [port, entry] : buses_) {
+        for (const auto& entry : buses_ | std::views::values) {
             entry.session->stop();
         }
     }
 
     void MainWindow::closeEvent(QCloseEvent* event) {
-        for (auto& [port, entry] : buses_) {
+        for (const auto& entry : buses_ | std::views::values) {
             entry.session->stop();
         }
         QMainWindow::closeEvent(event);
     }
 
-    void MainWindow::log(const QString& level, const QString& message) {
+    void MainWindow::log(const QString& level, const QString& message) const {
         // 日志输出英文原文到 stderr 与日志面板，状态栏显示简要信息。
         std::fprintf(stderr, "[%s] %s\n", level.toStdString().c_str(),
                      message.toStdString().c_str());
@@ -152,10 +151,8 @@ namespace app {
 
     servo_core::ServoConfig MainWindow::configFor(const QString& port,
                                                   const servo_core::ServoId id) const {
-        const auto port_it = configs_.find(port);
-        if (port_it != configs_.end()) {
-            const auto id_it = port_it->second.find(id);
-            if (id_it != port_it->second.end()) {
+        if (const auto port_it = configs_.find(port); port_it != configs_.end()) {
+            if (const auto id_it = port_it->second.find(id); id_it != port_it->second.end()) {
                 return id_it->second;
             }
         }
@@ -170,7 +167,7 @@ namespace app {
             log("error", "No serial port selected");
             return;
         }
-        if (buses_.count(port) != 0) {
+        if (buses_.contains(port)) {
             log("warn", "Already connected to " + port);
             return;
         }
@@ -190,7 +187,7 @@ namespace app {
         config.baud_rate = baudRate;
         config.response_timeout_ms = timeoutMs;
 
-        auto session = std::make_shared<servo_core::BusSession>(std::move(driver), config);
+        const auto session = std::make_shared<servo_core::BusSession>(std::move(driver), config);
         bridge->attach(session);
 
         connect(bridge, &SessionBridge::logReceived, this, &MainWindow::log);
@@ -253,7 +250,7 @@ namespace app {
             bridge->deleteLater();
             return;
         }
-        buses_[port] = BusEntry{session, bridge, backend};
+        buses_[port] = BusEntry{.session = session, .bridge = bridge, .driver_name = backend};
         device_tree_->addBus(port);
         device_tree_->setBusConnected(port, true);
         connection_panel_->setConnected(port, true);
@@ -305,7 +302,7 @@ namespace app {
 
     void MainWindow::setPollRate(const int hz) {
         poll_hz_ = hz;
-        for (const auto& [port, entry] : buses_) {
+        for (const auto& port : buses_ | std::views::keys) {
             applyPolling(port);
         }
         statusBar()->showMessage(tr("轮询频率：%1 Hz").arg(hz), 4000);
@@ -317,7 +314,7 @@ namespace app {
             return;
         }
         const auto ids = device_tree_->servoIds(port);
-        std::vector<servo_core::ServoId> std_ids(ids.begin(), ids.end());
+        const std::vector<servo_core::ServoId> std_ids(ids.begin(), ids.end());
         it->second.bridge->setPolling(std_ids, poll_hz_);
     }
 
@@ -485,11 +482,11 @@ namespace app {
                             }
                             log("info", "Baud rate changed, reconnecting " + port);
                             const int timeout =
-                                buses_.count(port) != 0
+                                buses_.contains(port)
                                     ? buses_[port].session->config().response_timeout_ms
                                     : 10;
                             const QString backend =
-                                buses_.count(port) != 0 ? buses_[port].driver_name
+                                buses_.contains(port) ? buses_[port].driver_name
                                                         : QString("feetech_scs");
                             disconnectBus(port);
                             connectBus(backend, port, new_baud, timeout);
@@ -546,8 +543,7 @@ namespace app {
         config.max_ticks = maxTicks;
         configs_[port][id] = config;
 
-        const auto it = buses_.find(port);
-        if (it != buses_.end()) {
+        if (const auto it = buses_.find(port); it != buses_.end()) {
             it->second.bridge->submit([config](servo_core::IServoDriver& driver) {
                 return driver.set_servo_config(config);
             });

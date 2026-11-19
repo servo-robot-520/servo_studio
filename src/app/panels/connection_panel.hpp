@@ -46,12 +46,12 @@ namespace app {
 
     public slots:
         /// 更新按钮使能：已连接时"连接"变为"断开"。
-        void setConnected(const QString& port, bool connected);
+        void setConnected(const QString& port, bool connected) const;
         /// 扫描进行中时禁用扫描按钮，防止并发扫描。
         void setScanning(bool scanning);
 
     private slots:
-        void refreshPorts();
+        void refreshPorts() const;
 
     private:
         QWidget* top_bar_;

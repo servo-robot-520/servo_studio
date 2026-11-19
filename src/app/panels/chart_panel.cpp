@@ -4,7 +4,6 @@
 #include <QGridLayout>
 #include <QLabel>
 #include <QVBoxLayout>
-#include <QtCharts/QChart>
 #include <QtCharts/QChartView>
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QValueAxis>
@@ -23,18 +22,30 @@ namespace app {
         };
 
         constexpr ChannelSpec kChannels[]{
-            {"位置", "deg", "#56B4C4", "%.1f", 2.0,
-             [](const servo_core::ServoState& s) { return s.position_deg; }},
-            {"速度", "deg/s", "#E8B44A", "%.1f", 4.0,
-             [](const servo_core::ServoState& s) { return s.velocity_deg_s; }},
-            {"负载", "", "#A98BD4", "%.2f", 0.2,
-             [](const servo_core::ServoState& s) { return s.load; }},
-            {"电压", "V", "#6C9BD2", "%.3f", 0.2,
-             [](const servo_core::ServoState& s) { return s.voltage; }},
-            {"温度", "C", "#C97BB5", "%.1f", 2.0,
-             [](const servo_core::ServoState& s) { return s.temperature; }},
-            {"电流", "A", "#7FBF7A", "%.3f", 0.02,
-             [](const servo_core::ServoState& s) { return s.current; }},
+            {.title = "位置", .unit = "deg", .color = "#56B4C4", .label_format = "%.1f", .min_span = 2.0,
+             .value = [](const servo_core::ServoState& s) {
+                 return s.position_deg;
+             }},
+            {.title = "速度", .unit = "deg/s", .color = "#E8B44A", .label_format = "%.1f", .min_span = 4.0,
+             .value = [](const servo_core::ServoState& s) {
+                 return s.velocity_deg_s;
+             }},
+            {.title = "负载", .unit = "", .color = "#A98BD4", .label_format = "%.2f", .min_span = 0.2,
+             .value = [](const servo_core::ServoState& s) {
+                 return s.load;
+             }},
+            {.title = "电压", .unit = "V", .color = "#6C9BD2", .label_format = "%.3f", .min_span = 0.2,
+             .value = [](const servo_core::ServoState& s) {
+                 return s.voltage;
+             }},
+            {.title = "温度", .unit = "C", .color = "#C97BB5", .label_format = "%.1f", .min_span = 2.0,
+             .value = [](const servo_core::ServoState& s) {
+                 return s.temperature;
+             }},
+            {.title = "电流", .unit = "A", .color = "#7FBF7A", .label_format = "%.3f", .min_span = 0.02,
+             .value = [](const servo_core::ServoState& s) {
+                 return s.current;
+             }},
         };
 
         const QColor kAxisColor("#8B98A5");
@@ -57,8 +68,7 @@ namespace app {
         toggle_row->setSpacing(12);
         layout->addLayout(toggle_row);
 
-        for (size_t index = 0; index < std::size(kChannels); ++index) {
-            const auto& spec = kChannels[index];
+        for (const auto & spec : kChannels) {
             Channel channel;
             channel.title = QString::fromUtf8(spec.title);
             channel.unit = QString::fromUtf8(spec.unit);
@@ -102,8 +112,8 @@ namespace app {
             // 表头：曲线同色标注通道名（含单位），就地识别监控内容。
             channel.header = new QLabel(
                 channel.unit.isEmpty()
-                    ? channel.title
-                    : QStringLiteral("%1 (%2)").arg(channel.title, channel.unit));
+                ? channel.title
+                : QStringLiteral("%1 (%2)").arg(channel.title, channel.unit));
             QFont header_font = channel.header->font();
             header_font.setWeight(QFont::DemiBold);
             channel.header->setFont(header_font);
@@ -123,7 +133,9 @@ namespace app {
             channel.toggle->setChecked(true);
             channel.toggle->setStyleSheet(
                 QStringLiteral("color: %1;").arg(channel.color.name()));
-            connect(channel.toggle, &QCheckBox::toggled, this, [this] { relayout(); });
+            connect(channel.toggle, &QCheckBox::toggled, this, [this] {
+                relayout();
+            });
             toggle_row->addWidget(channel.toggle);
             channels_.push_back(std::move(channel));
         }
@@ -141,7 +153,7 @@ namespace app {
     void ChartPanel::relayout() {
         // 移除全部格位（保留容器控件）。
         while (grid_->count() > 0) {
-            QLayoutItem* item = grid_->takeAt(0);
+            const QLayoutItem* item = grid_->takeAt(0);
             if (item != nullptr && item->widget() != nullptr) {
                 item->widget()->hide();
             }
@@ -248,7 +260,7 @@ namespace app {
         for (size_t index = 0; index < channels_.size(); ++index) {
             auto& channel = channels_[index];
             const double y = channel.value(*subject);
-            channel.points.push_back(QPointF(now, y));
+            channel.points.emplace_back(now, y);
             channel.series->append(now, y);
 
             // 裁剪时间窗外的旧点。
