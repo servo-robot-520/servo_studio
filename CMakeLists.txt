@@ -9,7 +9,7 @@ if (NOT CMAKE_CXX_COMPILER AND NOT DEFINED ENV{CXX})
     endif ()
 endif ()
 
-project(servo_studio VERSION 0.2.0 LANGUAGES CXX)
+project(servo_studio VERSION 0.3.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
