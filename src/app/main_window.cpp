@@ -37,7 +37,7 @@ namespace app {
         // 三栏：设备树 | 监控区（曲线/状态表）| 检查器。
         auto* columns = new QSplitter(Qt::Horizontal, central);
         device_tree_ = new DeviceTree(columns);
-        device_tree_->setMinimumWidth(300);
+        device_tree_->setMinimumWidth(260);
 
         auto* monitor = new QSplitter(Qt::Vertical, columns);
         chart_panel_ = new ChartPanel(monitor);

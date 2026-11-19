@@ -263,6 +263,11 @@ QScrollBar::add-page, QScrollBar::sub-page {
     background: none;
 }
 
+QScrollArea#panelScroll {
+    background: transparent;
+    border: none;
+}
+
 /* ---------- 悬停提示 ---------- */
 
 QToolTip {

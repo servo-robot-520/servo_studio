@@ -13,59 +13,75 @@ namespace app {
 
     ConnectionPanel::ConnectionPanel(QWidget* parent) :
         QWidget(parent) {
-        auto* layout = new QHBoxLayout(this);
+        auto* layout = new QVBoxLayout(this);
         layout->setContentsMargins(0, 0, 0, 0);
-        layout->setSpacing(8);
+        layout->setSpacing(6);
+
+        // 第一行：协议 / 串口 / 刷新 / 波特率。
+        auto* row1 = new QHBoxLayout;
+        row1->setSpacing(8);
 
         // 协议后端：一条串口仅支持一种协议。
-        layout->addWidget(new QLabel(tr("协议"), this));
+        row1->addWidget(new QLabel(tr("协议"), this));
         backend_combo_ = new QComboBox(this);
         backend_combo_->setToolTip(tr("舵机协议后端（一条串口仅支持一种协议）"));
         for (const auto& name : servo_core::DriverRegistry::instance().names()) {
             backend_combo_->addItem(QString::fromStdString(name));
         }
-        layout->addWidget(backend_combo_);
+        row1->addWidget(backend_combo_);
 
-        layout->addWidget(new QLabel(tr("串口"), this));
+        row1->addWidget(new QLabel(tr("串口"), this));
         port_combo_ = new QComboBox(this);
         port_combo_->setToolTip(tr("串口设备（优先显示稳定的 by-id 名称）"));
+        // 收敛关闭态宽度提示：长 by-id 名称在弹层中完整显示，
+        // 不再把窗口最小尺寸撑大（否则 WM 拒绝拖顶最大化）。
+        port_combo_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+        port_combo_->setMinimumContentsLength(12);
         port_combo_->setMinimumWidth(180);
         port_combo_->setEditable(true);
-        layout->addWidget(port_combo_);
+        row1->addWidget(port_combo_, 1);
 
         auto* refresh = new QPushButton(tr("刷新"), this);
         refresh->setToolTip(tr("刷新串口列表"));
         connect(refresh, &QPushButton::clicked, this, &ConnectionPanel::refreshPorts);
-        layout->addWidget(refresh);
+        row1->addWidget(refresh);
 
-        layout->addWidget(new QLabel(tr("波特率"), this));
+        row1->addWidget(new QLabel(tr("波特率"), this));
         baud_combo_ = new QComboBox(this);
         baud_combo_->setToolTip(tr("总线波特率（对应舵机寄存器 6 的档位）"));
+        baud_combo_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+        baud_combo_->setMinimumContentsLength(8);
         baud_combo_->setEditable(true);
         for (const int baud : {1000000, 500000, 250000, 128000, 115200, 76800, 57600, 38400}) {
             baud_combo_->addItem(QString::number(baud));
         }
-        layout->addWidget(baud_combo_);
+        row1->addWidget(baud_combo_);
+        row1->addStretch(1);
+        layout->addLayout(row1);
 
-        layout->addWidget(new QLabel(tr("超时(ms)"), this));
+        // 第二行：超时 / 轮询 / 连接 / 扫描 / 全部松扭矩。
+        auto* row2 = new QHBoxLayout;
+        row2->setSpacing(8);
+
+        row2->addWidget(new QLabel(tr("超时"), this));
         timeout_spin_ = new QSpinBox(this);
         timeout_spin_->setToolTip(tr("单次应答超时（毫秒）"));
         timeout_spin_->setRange(1, 1000);
         timeout_spin_->setValue(10);
-        layout->addWidget(timeout_spin_);
+        row2->addWidget(timeout_spin_);
 
-        layout->addWidget(new QLabel(tr("轮询(Hz)"), this));
+        row2->addWidget(new QLabel(tr("轮询"), this));
         poll_spin_ = new QSpinBox(this);
         poll_spin_->setToolTip(tr("遥测轮询频率（Hz），10–100 可调"));
         poll_spin_->setRange(10, 100);
         poll_spin_->setValue(50);
         connect(poll_spin_, &QSpinBox::valueChanged, this,
                 [this](const int hz) { emit pollRateChanged(hz); });
-        layout->addWidget(poll_spin_);
+        row2->addWidget(poll_spin_);
 
         connect_button_ = new QPushButton(tr("连接"), this);
-        connect_button_->setToolTip(tr("连接 / 断开当前串口总线"));
         connect_button_->setObjectName("primary");
+        connect_button_->setToolTip(tr("连接 / 断开当前串口总线"));
         connect(connect_button_, &QPushButton::clicked, this, [this] {
             if (connect_button_->property("connected").toBool()) {
                 emit disconnectRequested(port());
@@ -74,24 +90,25 @@ namespace app {
                 emit connectRequested(backend(), port(), baudRate(), timeoutMs());
             }
         });
-        layout->addWidget(connect_button_);
+        row2->addWidget(connect_button_);
 
         scan_button_ = new QPushButton(tr("扫描"), this);
         scan_button_->setToolTip(tr("扫描总线上的全部舵机（id 0..253），扫描期间不可重复触发"));
         scan_button_->setEnabled(false);
         connect(scan_button_, &QPushButton::clicked, this,
                 [this] { emit scanRequested(port()); });
-        layout->addWidget(scan_button_);
+        row2->addWidget(scan_button_);
 
         stop_button_ = new QPushButton(tr("全部松扭矩"), this);
-        stop_button_->setToolTip(tr("急停：关闭总线上全部舵机的力矩输出，输出轴自由"));
         stop_button_->setObjectName("danger");
+        stop_button_->setToolTip(tr("急停：关闭总线上全部舵机的力矩输出，输出轴自由"));
         stop_button_->setEnabled(false);
         connect(stop_button_, &QPushButton::clicked, this,
                 [this] { emit stopAllRequested(port()); });
-        layout->addWidget(stop_button_);
+        row2->addWidget(stop_button_);
+        row2->addStretch(1);
+        layout->addLayout(row2);
 
-        layout->addStretch(1);
         refreshPorts();
     }
 

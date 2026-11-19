@@ -7,6 +7,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QSlider>
 #include <QSpinBox>
 #include <QTimer>
@@ -18,8 +19,17 @@ namespace app {
         QWidget(parent) {
         // 允许缩窄，把横向空间让给监控区。
         setMinimumWidth(240);
-        auto* layout = new QVBoxLayout(this);
-        layout->setContentsMargins(0, 0, 0, 0);
+        // 内容放进滚动区：面板控件多，不限定窗口最小高度，
+        // 小窗口下可滚动而不是把整个窗口顶大。
+        auto* outer = new QVBoxLayout(this);
+        outer->setContentsMargins(0, 0, 0, 0);
+        auto* scroll = new QScrollArea(this);
+        scroll->setObjectName("panelScroll");
+        scroll->setWidgetResizable(true);
+        scroll->setFrameShape(QFrame::NoFrame);
+        auto* content = new QWidget(scroll);
+        auto* layout = new QVBoxLayout(content);
+        layout->setContentsMargins(0, 0, 4, 0);
         layout->setSpacing(10);
 
         // ---------- 命令区 ----------
@@ -192,6 +202,8 @@ namespace app {
         layout->addWidget(param_group);
 
         layout->addStretch(1);
+        scroll->setWidget(content);
+        outer->addWidget(scroll);
 
         // ---------- 信号 ----------
         connect(ticks_spin_, &QSpinBox::valueChanged, this, &InspectorPanel::onGoalValueChanged);
