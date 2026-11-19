@@ -17,8 +17,8 @@ namespace app {
 
     InspectorPanel::InspectorPanel(QWidget* parent) :
         QWidget(parent) {
-        // 允许缩窄，把横向空间让给监控区。
-        setMinimumWidth(240);
+        // 控件保持完整宽度：不设横向滚动，宽度不足时由窗口最小尺寸兜底。
+        setMinimumWidth(320);
         // 内容放进滚动区：面板控件多，不限定窗口最小高度，
         // 小窗口下可滚动而不是把整个窗口顶大。
         auto* outer = new QVBoxLayout(this);
@@ -27,6 +27,7 @@ namespace app {
         scroll->setObjectName("panelScroll");
         scroll->setWidgetResizable(true);
         scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         auto* content = new QWidget(scroll);
         auto* layout = new QVBoxLayout(content);
         layout->setContentsMargins(0, 0, 4, 0);

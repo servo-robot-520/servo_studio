@@ -34,11 +34,12 @@ namespace app {
         connection_panel_ = new ConnectionPanel(central);
         layout->addWidget(connection_panel_);
 
-        // 三栏：设备树 | 监控区（曲线/状态表）| 检查器。
+        // 上区：设备树 | 监控区（曲线/状态表）。
         auto* columns = new QSplitter(Qt::Horizontal, central);
         device_tree_ = new DeviceTree(columns);
         device_tree_->setMinimumWidth(260);
 
+        // 监控区：曲线在上、状态表在下。
         auto* monitor = new QSplitter(Qt::Vertical, columns);
         chart_panel_ = new ChartPanel(monitor);
         status_table_ = new StatusTable(monitor);
@@ -47,25 +48,29 @@ namespace app {
         monitor->setStretchFactor(0, 2);
         monitor->setStretchFactor(1, 1);
 
-        inspector_panel_ = new InspectorPanel(columns);
-
         columns->addWidget(device_tree_);
         columns->addWidget(monitor);
-        columns->addWidget(inspector_panel_);
         columns->setStretchFactor(0, 0);
         columns->setStretchFactor(1, 1);
-        columns->setStretchFactor(2, 0);
-        // 初始三栏把更多空间给监控区。
-        columns->setSizes({300, 900, 300});
+        columns->setSizes({300, 1100});
 
-        // 底部日志条。
-        auto* outer = new QSplitter(Qt::Vertical, central);
-        log_panel_ = new LogPanel(outer);
+        // 下区：日志居左（不占满整行）、检查器沉底居右。
+        auto* bottom = new QSplitter(Qt::Horizontal, central);
+        log_panel_ = new LogPanel(bottom);
         log_panel_->setMinimumHeight(140);
+        inspector_panel_ = new InspectorPanel(bottom);
+        bottom->addWidget(log_panel_);
+        bottom->addWidget(inspector_panel_);
+        bottom->setStretchFactor(0, 1);
+        bottom->setStretchFactor(1, 0);
+        bottom->setSizes({1000, 420});
+
+        auto* outer = new QSplitter(Qt::Vertical, central);
         outer->addWidget(columns);
-        outer->addWidget(log_panel_);
+        outer->addWidget(bottom);
         outer->setStretchFactor(0, 1);
         outer->setStretchFactor(1, 0);
+        outer->setSizes({620, 340});
         layout->addWidget(outer, 1);
 
         setCentralWidget(central);
