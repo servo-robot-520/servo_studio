@@ -1,6 +1,10 @@
 #include "app/panels/chart_panel.hpp"
 
+#include <cmath>
+
 #include <QCheckBox>
+#include <QEvent>
+#include <QWheelEvent>
 #include <QGridLayout>
 #include <QLabel>
 #include <QVBoxLayout>
@@ -108,6 +112,14 @@ namespace app {
 
             channel.view = new QChartView(channel.chart);
             channel.view->setMinimumHeight(140);
+            // 交互（视口级拦截，覆盖 QChartView 默认滚轮缩放）：
+            // 滚轮 = 水平缩放（鼠标处锚定）；按住右键滚动 = 水平位移；
+            // 双击 = 恢复默认 30 s 跟随窗口。
+            channel.view->viewport()->installEventFilter(this);
+            channel.view->setToolTip(
+                tr("滚轮：水平缩放（鼠标处锚定）\n"
+                   "按住右键滚动：水平位移\n"
+                   "双击：恢复默认时间窗"));
 
             // 表头：曲线同色标注通道名（含单位），就地识别监控内容。
             channel.header = new QLabel(
@@ -235,6 +247,7 @@ namespace app {
         for (auto& channel : channels_) {
             channel.points.clear();
             channel.series->clear();
+            channel.manual = false;
             channel.axis_x->setRange(-kWindowSeconds, 0);
         }
     }
@@ -285,8 +298,57 @@ namespace app {
             const double span = std::max(max - min, kChannels[index].min_span);
             const double center = (min + max) / 2.0;
             channel.axis_y->setRange(center - span * 0.6, center + span * 0.6);
-            channel.axis_x->setRange(cutoff, now);
+            if (!channel.manual) {
+                channel.axis_x->setRange(cutoff, now);
+            }
         }
+    }
+
+    bool ChartPanel::eventFilter(QObject* watched, QEvent* event) {
+        for (auto& channel : channels_) {
+            if (watched != channel.view->viewport()) {
+                continue;
+            }
+            if (event->type() == QEvent::Wheel) {
+                auto* wheel = static_cast<QWheelEvent*>(event);
+                if (wheel->angleDelta().y() == 0) {
+                    return true;
+                }
+                const double min = channel.axis_x->min();
+                const double max = channel.axis_x->max();
+                if (wheel->buttons() & Qt::RightButton) {
+                    // 按住右键滚动：水平位移，每格 10% 量程，上滚向过去。
+                    const double step = (max - min) * 0.1;
+                    const double shift = wheel->angleDelta().y() > 0 ? -step : step;
+                    channel.axis_x->setRange(min + shift, max + shift);
+                }
+                else {
+                    // 滚轮：以鼠标位置为锚的水平缩放，上滚放大。
+                    double anchor =
+                        channel.chart->mapToValue(wheel->position(), channel.series).x();
+                    if (!std::isfinite(anchor)) {
+                        // 视图尚未布局时映射无效，退到窗口中心。
+                        anchor = (min + max) / 2.0;
+                    }
+                    const double factor = wheel->angleDelta().y() > 0 ? 0.8 : 1.25;
+                    channel.axis_x->setRange(anchor - (anchor - min) * factor,
+                                             anchor + (max - anchor) * factor);
+                }
+                channel.manual = true;
+                return true;
+            }
+            if (event->type() == QEvent::MouseButtonDblClick) {
+                // 双击：恢复全部通道默认 30 s 跟随窗口。
+                const double now = clock_.elapsed() / 1000.0;
+                for (auto& target : channels_) {
+                    target.manual = false;
+                    target.axis_x->setRange(now - kWindowSeconds, now);
+                }
+                return true;
+            }
+            return false;
+        }
+        return QWidget::eventFilter(watched, event);
     }
 
 } // namespace app
