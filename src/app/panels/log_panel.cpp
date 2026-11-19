@@ -23,12 +23,15 @@ namespace app {
         auto* bar = new QHBoxLayout;
         bar->addWidget(new QLabel(tr("日志"), this));
         filter_ = new QComboBox(this);
+        filter_->setToolTip(tr("按级别过滤日志（帧级收发为 trace）"));
         filter_->addItems({tr("全部"), "info", "warn", "error", "trace"});
         connect(filter_, &QComboBox::currentIndexChanged, this, &LogPanel::applyFilter);
         bar->addWidget(filter_);
         bar->addStretch(1);
         auto* export_button = new QPushButton(tr("导出"), this);
         auto* clear_button = new QPushButton(tr("清空"), this);
+        export_button->setToolTip(tr("导出日志到文本文件"));
+        clear_button->setToolTip(tr("清空当前日志"));
         connect(export_button, &QPushButton::clicked, this, &LogPanel::exportEntries);
         connect(clear_button, &QPushButton::clicked, this, &LogPanel::clearEntries);
         bar->addWidget(export_button);

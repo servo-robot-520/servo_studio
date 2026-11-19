@@ -53,6 +53,10 @@ namespace app {
         write_all_button_ = new QPushButton(tr("写入到全部舵机"), this);
         backup_button_ = new QPushButton(tr("备份参数"), this);
         restore_button_ = new QPushButton(tr("恢复参数"), this);
+        reload_button_->setToolTip(tr("重新读取全部寄存器的当前值"));
+        write_all_button_->setToolTip(tr("将选中行参数写入总线上全部舵机（需确认）"));
+        backup_button_->setToolTip(tr("将整表参数备份为 JSON 文件（含型号与 ID）"));
+        restore_button_->setToolTip(tr("从备份文件恢复参数（自动跳过 ID 与波特率）"));
         bar->addWidget(reload_button_);
         bar->addWidget(write_all_button_);
         bar->addStretch(1);
@@ -61,6 +65,7 @@ namespace app {
         layout->addLayout(bar);
 
         table_ = new QTableWidget(this);
+        table_->setToolTip(tr("点击值列编辑可修行；只读行仅展示。写入点操作列按钮并确认"));
         table_->installEventFilter(this);
         table_->setColumnCount(kColumnCount);
         table_->setHorizontalHeaderLabels(

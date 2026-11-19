@@ -119,6 +119,7 @@ namespace app {
             // 通道开关常驻于顶部开关行，不随小图隐藏，
             // 保证取消后随时可以重新勾选。
             channel.toggle = new QCheckBox(channel.title);
+            channel.toggle->setToolTip(tr("显示 / 隐藏该通道曲线"));
             channel.toggle->setChecked(true);
             channel.toggle->setStyleSheet(
                 QStringLiteral("color: %1;").arg(channel.color.name()));
