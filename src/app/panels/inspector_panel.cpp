@@ -40,7 +40,9 @@ namespace app {
 
         ticks_spin_ = new QSpinBox(command_group);
         ticks_spin_->setRange(0, 1023);
-        ticks_spin_->setToolTip(tr("目标位置（tick）；回车直接下发"));
+        ticks_spin_->setToolTip(
+            tr("目标位置（tick），%1 为中位；回车直接下发")
+                .arg(static_cast<int>(servo_core::ServoConfig{}.center_ticks)));
         deg_label_ = new QLabel("= 0.00°", command_group);
         deg_label_->setObjectName("muted");
         auto* position_row = new QHBoxLayout;

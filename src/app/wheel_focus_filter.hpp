@@ -19,12 +19,15 @@ namespace app {
     protected:
         bool eventFilter(QObject* watched, QEvent* event) override {
             if (event->type() == QEvent::Wheel && watched->isWidgetType()) {
-                auto* widget = static_cast<QWidget*>(watched);
-                const bool is_input = qobject_cast<QAbstractSpinBox*>(widget) != nullptr ||
-                    qobject_cast<QComboBox*>(widget) != nullptr ||
-                    qobject_cast<QSlider*>(widget) != nullptr;
-                if (is_input && !widget->hasFocus()) {
-                    return true; // 未获焦点的滚轮直接忽略
+                // 真实滚轮事件可能落在数字框内部的行编辑等子控件上，
+                // 需向上查找所属输入控件再判断焦点。
+                for (auto* w = static_cast<QWidget*>(watched); w != nullptr;
+                     w = w->parentWidget()) {
+                    if (qobject_cast<QAbstractSpinBox*>(w) != nullptr ||
+                        qobject_cast<QComboBox*>(w) != nullptr ||
+                        qobject_cast<QSlider*>(w) != nullptr) {
+                        return !w->hasFocus(); // 未聚焦：忽略滚轮
+                    }
                 }
             }
             return QObject::eventFilter(watched, event);

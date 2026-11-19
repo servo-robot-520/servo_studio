@@ -77,47 +77,61 @@ namespace app {
         root->addWidget(top_bar_);
 
         // 侧栏（设备列表上方）：超时 / 轮询 / 扫描 / 全部松扭矩。
+        // 两列网格：超时+输入框 与 扫描 同宽对齐，轮询+输入框 与 全部松扭矩 对齐。
         side_bar_ = new QWidget(this);
         auto* side = new QVBoxLayout(side_bar_);
         side->setContentsMargins(0, 0, 0, 0);
         side->setSpacing(6);
 
-        auto* row1 = new QHBoxLayout;
-        row1->setSpacing(8);
-        row1->addWidget(new QLabel(tr("超时"), side_bar_));
-        timeout_spin_ = new QSpinBox(side_bar_);
+        auto* grid = new QGridLayout;
+        grid->setHorizontalSpacing(8);
+        grid->setVerticalSpacing(6);
+
+        auto* timeout_box = new QWidget(side_bar_);
+        auto* timeout_row = new QHBoxLayout(timeout_box);
+        timeout_row->setContentsMargins(0, 0, 0, 0);
+        timeout_row->setSpacing(8);
+        timeout_row->addWidget(new QLabel(tr("超时"), timeout_box));
+        timeout_spin_ = new QSpinBox(timeout_box);
         timeout_spin_->setToolTip(tr("单次应答超时（毫秒）"));
         timeout_spin_->setRange(1, 1000);
         timeout_spin_->setValue(10);
-        row1->addWidget(timeout_spin_);
-        row1->addWidget(new QLabel(tr("轮询"), side_bar_));
-        poll_spin_ = new QSpinBox(side_bar_);
+        timeout_row->addWidget(timeout_spin_);
+        timeout_row->addStretch(1);
+
+        auto* poll_box = new QWidget(side_bar_);
+        auto* poll_row = new QHBoxLayout(poll_box);
+        poll_row->setContentsMargins(0, 0, 0, 0);
+        poll_row->setSpacing(8);
+        poll_row->addWidget(new QLabel(tr("轮询"), poll_box));
+        poll_spin_ = new QSpinBox(poll_box);
         poll_spin_->setToolTip(tr("遥测轮询频率（Hz），10–100 可调"));
         poll_spin_->setRange(10, 100);
         poll_spin_->setValue(50);
         connect(poll_spin_, &QSpinBox::valueChanged, this,
                 [this](const int hz) { emit pollRateChanged(hz); });
-        row1->addWidget(poll_spin_);
-        row1->addStretch(1);
-        side->addLayout(row1);
+        poll_row->addWidget(poll_spin_);
+        poll_row->addStretch(1);
 
-        auto* row2 = new QHBoxLayout;
-        row2->setSpacing(8);
         scan_button_ = new QPushButton(tr("扫描"), side_bar_);
         scan_button_->setToolTip(tr("扫描总线上的全部舵机（id 0..253），扫描期间不可重复触发"));
         scan_button_->setEnabled(false);
         connect(scan_button_, &QPushButton::clicked, this,
                 [this] { emit scanRequested(port()); });
-        // 两按钮等宽填满侧栏行。
-        row2->addWidget(scan_button_, 1);
         stop_button_ = new QPushButton(tr("全部松扭矩"), side_bar_);
         stop_button_->setObjectName("danger");
         stop_button_->setToolTip(tr("急停：关闭总线上全部舵机的力矩输出，输出轴自由"));
         stop_button_->setEnabled(false);
         connect(stop_button_, &QPushButton::clicked, this,
                 [this] { emit stopAllRequested(port()); });
-        row2->addWidget(stop_button_, 1);
-        side->addLayout(row2);
+
+        grid->addWidget(timeout_box, 0, 0);
+        grid->addWidget(poll_box, 0, 1);
+        grid->addWidget(scan_button_, 1, 0);
+        grid->addWidget(stop_button_, 1, 1);
+        grid->setColumnStretch(0, 1);
+        grid->setColumnStretch(1, 1);
+        side->addLayout(grid);
         root->addWidget(side_bar_);
 
         refreshPorts();
