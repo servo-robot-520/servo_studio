@@ -1,5 +1,7 @@
 #include "app/panels/connection_panel.hpp"
 
+#include "servo_core/registry.hpp"
+
 #include <QComboBox>
 #include <QDir>
 #include <QHBoxLayout>
@@ -14,6 +16,15 @@ namespace app {
         auto* layout = new QHBoxLayout(this);
         layout->setContentsMargins(0, 0, 0, 0);
         layout->setSpacing(8);
+
+        // 协议后端：一条串口仅支持一种协议。
+        layout->addWidget(new QLabel(tr("协议"), this));
+        backend_combo_ = new QComboBox(this);
+        backend_combo_->setToolTip(tr("舵机协议后端（一条串口仅支持一种协议）"));
+        for (const auto& name : servo_core::DriverRegistry::instance().names()) {
+            backend_combo_->addItem(QString::fromStdString(name));
+        }
+        layout->addWidget(backend_combo_);
 
         layout->addWidget(new QLabel(tr("串口"), this));
         port_combo_ = new QComboBox(this);
@@ -60,7 +71,7 @@ namespace app {
                 emit disconnectRequested(port());
             }
             else {
-                emit connectRequested(port(), baudRate(), timeoutMs());
+                emit connectRequested(backend(), port(), baudRate(), timeoutMs());
             }
         });
         layout->addWidget(connect_button_);
@@ -82,6 +93,10 @@ namespace app {
 
         layout->addStretch(1);
         refreshPorts();
+    }
+
+    QString ConnectionPanel::backend() const {
+        return backend_combo_->currentText();
     }
 
     QString ConnectionPanel::port() const {
@@ -113,6 +128,7 @@ namespace app {
         connect_button_->setText(connected ? tr("断开") : tr("连接"));
         scan_button_->setEnabled(connected && !scanning_);
         stop_button_->setEnabled(connected);
+        backend_combo_->setEnabled(!connected);
         port_combo_->setEnabled(!connected);
         baud_combo_->setEnabled(!connected);
     }

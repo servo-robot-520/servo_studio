@@ -22,7 +22,7 @@ namespace app {
         layout->setSpacing(10);
 
         // ---------- 命令区 ----------
-        auto* command_group = new QGroupBox(tr("命令"), this);
+        auto* command_group = new QGroupBox(tr("舵机操作"), this);
         auto* form = new QFormLayout(command_group);
 
         ticks_spin_ = new QSpinBox(command_group);
@@ -134,7 +134,7 @@ namespace app {
         layout->addWidget(command_group);
 
         // ---------- 参数入口 ----------
-        auto* param_group = new QGroupBox(tr("参数"), this);
+        auto* param_group = new QGroupBox(tr("编程"), this);
         auto* param_layout = new QVBoxLayout(param_group);
         register_button_ = new QPushButton(tr("寄存器…"), param_group);
         register_button_->setToolTip(tr("打开全量寄存器工作台（地址/中英文/区域读写）"));

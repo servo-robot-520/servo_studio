@@ -15,6 +15,8 @@ namespace app {
     public:
         explicit ConnectionPanel(QWidget* parent = nullptr);
 
+        /// 当前表单中的协议后端（驱动名）。
+        [[nodiscard]] QString backend() const;
         /// 当前表单中的串口设备。
         [[nodiscard]] QString port() const;
         /// 当前表单中的波特率。
@@ -25,8 +27,9 @@ namespace app {
         [[nodiscard]] int pollRate() const;
 
     signals:
-        /// 请求连接总线。
-        void connectRequested(const QString& port, int baudRate, int timeoutMs);
+        /// 请求连接总线（协议后端 + 串口）。
+        void connectRequested(const QString& backend, const QString& port, int baudRate,
+                              int timeoutMs);
         /// 请求断开当前表单中的总线。
         void disconnectRequested(const QString& port);
         /// 请求扫描当前表单中的总线。
@@ -46,6 +49,7 @@ namespace app {
         void refreshPorts();
 
     private:
+        QComboBox* backend_combo_;
         QComboBox* port_combo_;
         QComboBox* baud_combo_;
         QSpinBox* timeout_spin_;

@@ -35,7 +35,8 @@ namespace app {
         void closeEvent(QCloseEvent* event) override;
 
     private slots:
-        void connectBus(const QString& port, int baudRate, int timeoutMs);
+        void connectBus(const QString& backend, const QString& port, int baudRate,
+                        int timeoutMs);
         void disconnectBus(const QString& port);
         void scanBus(const QString& port);
         void stopAll(const QString& port);

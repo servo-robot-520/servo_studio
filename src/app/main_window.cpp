@@ -150,7 +150,8 @@ namespace app {
         return config;
     }
 
-    void MainWindow::connectBus(const QString& port, const int baudRate, const int timeoutMs) {
+    void MainWindow::connectBus(const QString& backend, const QString& port, const int baudRate,
+                                const int timeoutMs) {
         if (port.isEmpty()) {
             log("error", "No serial port selected");
             return;
@@ -159,9 +160,9 @@ namespace app {
             log("warn", "Already connected to " + port);
             return;
         }
-        auto driver = servo_core::DriverRegistry::instance().create("feetech_scs");
+        auto driver = servo_core::DriverRegistry::instance().create(backend.toStdString());
         if (!driver) {
-            log("error", "Driver 'feetech_scs' is not registered");
+            log("error", "Driver '" + backend + "' is not registered");
             return;
         }
         auto* bridge = new SessionBridge(this);
@@ -238,7 +239,7 @@ namespace app {
             bridge->deleteLater();
             return;
         }
-        buses_[port] = BusEntry{session, bridge, "feetech_scs"};
+        buses_[port] = BusEntry{session, bridge, backend};
         device_tree_->addBus(port);
         device_tree_->setBusConnected(port, true);
         connection_panel_->setConnected(port, true);
@@ -473,8 +474,11 @@ namespace app {
                                 buses_.count(port) != 0
                                     ? buses_[port].session->config().response_timeout_ms
                                     : 10;
+                            const QString backend =
+                                buses_.count(port) != 0 ? buses_[port].driver_name
+                                                        : QString("feetech_scs");
                             disconnectBus(port);
-                            connectBus(port, new_baud, timeout);
+                            connectBus(backend, port, new_baud, timeout);
                             scanBus(port);
                         },
                         Qt::QueuedConnection);

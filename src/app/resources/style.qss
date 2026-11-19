@@ -136,6 +136,13 @@ QComboBox QAbstractItemView {
     border: 1px solid #323B45;
     selection-background-color: #E8B44A;
     selection-color: #15181D;
+    font-size: 12px;
+    outline: none;
+}
+
+QComboBox QAbstractItemView::item {
+    padding: 6px 10px;
+    min-height: 22px;
 }
 
 QSpinBox::up-button, QSpinBox::down-button,
