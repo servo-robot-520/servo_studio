@@ -256,6 +256,16 @@ QScrollBar::add-page, QScrollBar::sub-page {
     background: none;
 }
 
+/* ---------- 悬停提示 ---------- */
+
+QToolTip {
+    background: #252C35;
+    color: #DCE3EA;
+    border: 1px solid #323B45;
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+
 /* ---------- 状态栏 ---------- */
 
 QStatusBar {

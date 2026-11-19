@@ -44,8 +44,8 @@ namespace app {
 
         jog_minus_button_ = new QPushButton(tr("−1°"), command_group);
         jog_plus_button_ = new QPushButton(tr("+1°"), command_group);
-        jog_minus_button_->setToolTip(tr("目标位置换算为度后减 1° 并下发"));
-        jog_plus_button_->setToolTip(tr("目标位置换算为度后加 1° 并下发"));
+        jog_minus_button_->setToolTip(tr("目标位置换算为度后减 1°"));
+        jog_plus_button_->setToolTip(tr("目标位置换算为度后加 1°"));
         auto* jog_row = new QHBoxLayout;
         jog_row->addWidget(jog_minus_button_);
         jog_row->addWidget(jog_plus_button_);
