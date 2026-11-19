@@ -126,7 +126,7 @@ QComboBox::drop-down {
 
 QComboBox::down-arrow {
     image: url(:/arrow-down.png);
-    width: 8px;
+    width: 9px;
     height: 5px;
     margin-right: 8px;
 }
@@ -148,13 +148,13 @@ QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
 /* 步进箭头必须显式着色：默认箭头是深色，画在深色按钮上不可见。 */
 QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
     image: url(:/arrow-up.png);
-    width: 8px;
+    width: 9px;
     height: 5px;
 }
 
 QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
     image: url(:/arrow-down.png);
-    width: 8px;
+    width: 9px;
     height: 5px;
 }
 
