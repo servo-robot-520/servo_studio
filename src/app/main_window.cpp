@@ -352,9 +352,15 @@ namespace app {
     void MainWindow::onServoSelected() {
         QString port;
         servo_core::ServoId id = 0;
-        if (!device_tree_->selectedServo(&port, &id) && !status_table_->selectedServo(&port, &id)) {
+        // 信号源面板优先：另一面板的旧选中不覆盖本次点击。
+        const bool found = sender() == status_table_
+                               ? status_table_->selectedServo(&port, &id)
+                               : (device_tree_->selectedServo(&port, &id) ||
+                                  status_table_->selectedServo(&port, &id));
+        if (!found) {
             return;
         }
+        const bool subject_changed = !has_subject_ || subject_port_ != port || subject_id_ != id;
         has_subject_ = true;
         subject_port_ = port;
         subject_id_ = id;
@@ -372,8 +378,11 @@ namespace app {
         chart_panel_->setSubject(port, id, model);
         // 寄存器弹窗跟随当前选中对象。
         params_dialog_->setSubject(port, id);
-        if (const auto it = buses_.find(port); it != buses_.end()) {
-            it->second.bridge->readParameters(port, id);
+        // 参数仅在监控对象切换时加载，重复点选不刷新、不刷日志。
+        if (subject_changed) {
+            if (const auto it = buses_.find(port); it != buses_.end()) {
+                it->second.bridge->readParameters(port, id);
+            }
         }
     }
 
@@ -593,7 +602,7 @@ namespace app {
         for (const auto& [bus_port, entry] : buses_) {
             (void)entry;
             for (const auto id : device_tree_->servoIds(bus_port)) {
-                servos.push_back({bus_port, id, configFor(bus_port, id)});
+                servos.push_back({.port = bus_port, .id = id, .config = configFor(bus_port, id)});
             }
         }
         batch_dialog_->setServos(servos);
@@ -685,7 +694,7 @@ namespace app {
 
     void MainWindow::handleBatchTrigger() {
         int buses_triggered = 0;
-        for (const auto& [bus_port, entry] : buses_) {
+        for (const auto& entry : buses_ | std::views::values) {
             ++buses_triggered;
             entry.bridge->submit(
                 [](servo_core::IServoDriver& driver) { return driver.trigger_staged(); },
