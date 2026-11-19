@@ -43,7 +43,7 @@ namespace feetech_scs_ros2_control::test {
     /// @brief 基于伪终端的极简 SCS 总线模拟器。
     ///
     /// 驱动打开 pty 从端，本类在主端应答，实现 PING、READ、WRITE 和 SYNC WRITE，
-    /// 可模拟一组舵机 id。
+    /// 可模拟一组舵机 id；REG_WRITE 预存由 ACTION 触发生效。
     class FakeScsBus {
     public:
         explicit FakeScsBus(const std::vector<uint8_t>& ids, const uint16_t model = kModelSc215) {
@@ -290,6 +290,39 @@ namespace feetech_scs_ros2_control::test {
                 respond(id, std::span<const uint8_t>{});
                 break;
             }
+            case kInstructionRegWrite: {
+                // 异步写预存：暂存不生效，应答并置异步标志。
+                if (params.size() < 2) {
+                    return;
+                }
+                {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    pending_writes_[id] = {params[0],
+                                           std::vector<uint8_t>(params.begin() + 1, params.end())};
+                    if (servos_.find(id) != servos_.end()) {
+                        servos_.at(id).registers[kRegisterAsyncWriteFlag] = 1;
+                    }
+                }
+                respond(id, std::span<const uint8_t>{});
+                break;
+            }
+            case kInstructionAction: {
+                // 无应答；应用预存的 REG_WRITE 数据（指定 id 或广播）。
+                std::unordered_map<uint8_t, PendingWrite> pending;
+                {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    pending.swap(pending_writes_);
+                    for (auto& [pending_id, servo] : servos_) {
+                        servo.registers[kRegisterAsyncWriteFlag] = 0;
+                    }
+                }
+                for (const auto& [pending_id, write] : pending) {
+                    if (id == 0xFE || id == pending_id) {
+                        write_registers(pending_id, write.address, write.data);
+                    }
+                }
+                break;
+            }
             case kInstructionSyncWrite: {
                 if (params.size() < 2) {
                     return;
@@ -369,6 +402,12 @@ namespace feetech_scs_ros2_control::test {
         int master_fd_{-1};
         std::string slave_path_;
         std::unordered_map<uint8_t, Servo> servos_;
+        /// REG_WRITE 预存暂存，ACTION 时生效。
+        struct PendingWrite {
+            uint8_t address;
+            std::vector<uint8_t> data;
+        };
+        std::unordered_map<uint8_t, PendingWrite> pending_writes_;
         mutable std::mutex mutex_;
         std::vector<uint8_t> response_prefix_;
         std::atomic<bool> stop_{false};

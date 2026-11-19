@@ -147,6 +147,16 @@ namespace app {
         form->addRow(apply_config_button_);
         layout->addWidget(command_group);
 
+        // ---------- 批量操作 ----------
+        auto* batch_group = new QGroupBox(tr("批量操作"), this);
+        auto* batch_layout = new QVBoxLayout(batch_group);
+        batch_button_ = new QPushButton(tr("批量操作…"), batch_group);
+        batch_button_->setObjectName("primary");
+        batch_button_->setToolTip(
+            tr("多舵机目标编排：逐台设目标，同步下发或异步预存 + 触发"));
+        batch_layout->addWidget(batch_button_);
+        layout->addWidget(batch_group);
+
         // ---------- 自动调试 ----------
         // 自动动作发生器：持续下发目标辅助人工整定（调 P/D 看阶跃响应、
         // 老化、回差检查）。复用目标下发通道，切换对象即自动停止。
@@ -275,6 +285,7 @@ namespace app {
                                           min_ticks_spin_->value(), max_ticks_spin_->value());
             }
         });
+        connect(batch_button_, &QPushButton::clicked, this, [this] { emit batchRequested(); });
         connect(register_button_, &QPushButton::clicked, this,
                 [this] { emit registerRequested(); });
 

@@ -207,7 +207,7 @@ namespace servo_backends {
 
     Result FeetechScsDriver::sync_write_goals(const std::vector<ServoId>& ids,
                                               const std::vector<int>& positions_ticks,
-                                              const int time_ms,
+                                              const std::vector<int>& times_ms,
                                               const std::vector<int>& speeds_ticks_s,
                                               const int acc) {
         // SCS 系列无加速度寄存器，acc 忽略（STS 后端将随位置帧写入 ACC 寄存器）。
@@ -215,19 +215,49 @@ namespace servo_backends {
         if (!protocol_) {
             return Result::failure("Serial port is not open");
         }
-        if (ids.size() != positions_ticks.size() || ids.size() != speeds_ticks_s.size()) {
-            return Result::failure("sync_write_goals requires matching ids, positions and speeds");
+        if (ids.size() != positions_ticks.size() || ids.size() != times_ms.size() ||
+            ids.size() != speeds_ticks_s.size()) {
+            return Result::failure(
+                "sync_write_goals requires matching ids, positions, times and speeds");
         }
         std::vector<uint16_t> positions;
+        std::vector<uint16_t> times;
         std::vector<uint16_t> speeds;
         positions.reserve(ids.size());
+        times.reserve(ids.size());
         speeds.reserve(ids.size());
         for (size_t i = 0; i < ids.size(); ++i) {
             positions.push_back(static_cast<uint16_t>(clamp_ticks(positions_ticks[i], config_for(ids[i]))));
+            times.push_back(static_cast<uint16_t>(std::max(0, times_ms[i])));
             speeds.push_back(static_cast<uint16_t>(std::clamp(speeds_ticks_s[i], 0, 0xFFFF)));
         }
-        return to_result(protocol_->sync_write_goal_positions(
-            ids, positions, static_cast<uint16_t>(std::max(0, time_ms)), speeds));
+        return to_result(protocol_->sync_write_goal_positions(ids, positions, times, speeds));
+    }
+
+    bool FeetechScsDriver::supports_staged_write() const {
+        // SCS 固件支持 REG_WRITE(0x04)/ACTION(0x05) 异步写。
+        return true;
+    }
+
+    Result FeetechScsDriver::stage_goal(const ServoId id, const int position_ticks,
+                                        const int time_ms, const int speed_ticks_s,
+                                        const int acc) {
+        // SCS 系列无加速度寄存器，acc 忽略。
+        (void)acc;
+        if (!protocol_) {
+            return Result::failure("Serial port is not open");
+        }
+        const auto position = static_cast<uint16_t>(clamp_ticks(position_ticks, config_for(id)));
+        return to_result(protocol_->reg_write_goal_position(
+            id, position, static_cast<uint16_t>(std::max(0, time_ms)),
+            static_cast<uint16_t>(std::clamp(speed_ticks_s, 0, 0xFFFF))));
+    }
+
+    Result FeetechScsDriver::trigger_staged() {
+        if (!protocol_) {
+            return Result::failure("Serial port is not open");
+        }
+        return to_result(protocol_->action());
     }
 
     Result FeetechScsDriver::set_torque(const ServoId id, const bool enabled) {

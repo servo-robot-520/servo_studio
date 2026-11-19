@@ -1,5 +1,7 @@
 #include "app/main_window.hpp"
 
+#include <ranges>
+
 #include <QCloseEvent>
 #include <QFileDialog>
 #include <QMessageBox>
@@ -9,6 +11,7 @@
 #include <cstdio>
 
 #include "app/params_backup.hpp"
+#include "app/panels/batch_dialog.hpp"
 #include "app/panels/chart_panel.hpp"
 #include "app/panels/connection_panel.hpp"
 #include "app/panels/device_tree.hpp"
@@ -99,6 +102,25 @@ namespace app {
         connect(inspector_panel_, &InspectorPanel::torqueRequested, this, &MainWindow::handleTorque);
         connect(inspector_panel_, &InspectorPanel::servoConfigRequested, this,
                 &MainWindow::handleServoConfig);
+
+        // 批量操作弹窗（非模态）：多舵机目标编排。
+        batch_dialog_ = new BatchDialog(this);
+        connect(inspector_panel_, &InspectorPanel::batchRequested, this, [this] {
+            refreshBatchDialog();
+            batch_dialog_->show();
+            batch_dialog_->raise();
+            for (const auto& [bus_port, entry] : buses_) {
+                entry.bridge->queryStagedSupport(bus_port);
+            }
+        });
+        connect(batch_dialog_, &BatchDialog::refreshRequested, this,
+                &MainWindow::refreshBatchDialog);
+        connect(batch_dialog_, &BatchDialog::syncRequested, this,
+                &MainWindow::handleBatchSync);
+        connect(batch_dialog_, &BatchDialog::stageRequested, this,
+                &MainWindow::handleBatchStage);
+        connect(batch_dialog_, &BatchDialog::triggerRequested, this,
+                &MainWindow::handleBatchTrigger);
 
         // 寄存器工作台（非模态弹窗）：全量寄存器读写。
         params_dialog_ = new ParamsDialog(this);
@@ -209,6 +231,7 @@ namespace app {
                     }
                     applyPolling(bus_port);
                     connection_panel_->setScanning(false);
+                    refreshBatchDialog();
                     log("info", QStringLiteral("Scan on %1 finished: %2 servo(s) found")
                                     .arg(bus_port)
                                     .arg(infos.size()));
@@ -225,6 +248,12 @@ namespace app {
                 [this](const bool success, const QString& error) {
                     if (!success) {
                         log("error", error);
+                    }
+                });
+        connect(bridge, &SessionBridge::stagedSupportKnown, this,
+                [this](const QString&, const bool supported) {
+                    if (supported) {
+                        batch_dialog_->setStagedSupported(true);
                     }
                 });
         connect(bridge, &SessionBridge::restoreFinished, this,
@@ -254,6 +283,7 @@ namespace app {
         device_tree_->addBus(port);
         device_tree_->setBusConnected(port, true);
         connection_panel_->setConnected(port, true);
+        refreshBatchDialog();
         log("info", "Connected to " + port);
     }
 
@@ -269,6 +299,7 @@ namespace app {
         device_tree_->removeBus(port);
         connection_panel_->setConnected(port, false);
         connection_panel_->setScanning(false);
+        refreshBatchDialog();
         log("info", "Disconnected from " + port);
     }
 
@@ -398,10 +429,11 @@ namespace app {
             }
             else {
                 const std::vector<int> positions(ids.size(), ticks);
+                const std::vector<int> times(ids.size(), timeMs);
                 const std::vector<int> speeds(ids.size(), speed);
                 it->second.bridge->submit(
-                    [ids, positions, timeMs, speeds, acc](servo_core::IServoDriver& driver) {
-                        return driver.sync_write_goals(ids, positions, timeMs, speeds, acc);
+                    [ids, positions, times, speeds, acc](servo_core::IServoDriver& driver) {
+                        return driver.sync_write_goals(ids, positions, times, speeds, acc);
                     });
             }
         }
@@ -554,6 +586,124 @@ namespace app {
                         .arg(rangeDeg)
                         .arg(minTicks)
                         .arg(maxTicks));
+    }
+
+    void MainWindow::refreshBatchDialog() {
+        QVector<BatchDialog::BatchServo> servos;
+        for (const auto& [bus_port, entry] : buses_) {
+            (void)entry;
+            for (const auto id : device_tree_->servoIds(bus_port)) {
+                servos.push_back({bus_port, id, configFor(bus_port, id)});
+            }
+        }
+        batch_dialog_->setServos(servos);
+    }
+
+    void MainWindow::handleBatchSync(const QVector<BatchGoal>& goals) {
+        if (goals.isEmpty()) {
+            log("warn", "No participating row (check 目标 and 参与)");
+            return;
+        }
+        // 按总线分组：各行自己的目标值组包 SYNC WRITE。
+        std::map<QString, std::vector<BatchGoal>> by_bus;
+        for (const auto& goal : goals) {
+            by_bus[goal.port].push_back(goal);
+        }
+        for (const auto& [bus_port, bus_goals] : by_bus) {
+            const auto it = buses_.find(bus_port);
+            if (it == buses_.end()) {
+                continue;
+            }
+            std::vector<servo_core::ServoId> ids;
+            std::vector<int> positions;
+            std::vector<int> times;
+            std::vector<int> speeds;
+            for (const auto& goal : bus_goals) {
+                ids.push_back(goal.id);
+                positions.push_back(goal.ticks);
+                times.push_back(goal.timeMs);
+                speeds.push_back(goal.speed);
+            }
+            it->second.bridge->submit(
+                [ids, positions, times, speeds](servo_core::IServoDriver& driver) {
+                    return driver.sync_write_goals(ids, positions, times, speeds);
+                });
+        }
+        log("info", QStringLiteral("Batch sync dispatched %1 goal(s) on %2 bus(es)")
+                        .arg(goals.size())
+                        .arg(by_bus.size()));
+    }
+
+    void MainWindow::handleBatchStage(const QVector<BatchGoal>& goals) {
+        if (goals.isEmpty()) {
+            log("warn", "No participating row (check 目标 and 参与)");
+            return;
+        }
+        std::map<QString, std::vector<BatchGoal>> by_bus;
+        for (const auto& goal : goals) {
+            by_bus[goal.port].push_back(goal);
+        }
+        auto progress = std::make_shared<std::pair<int, int>>(0, static_cast<int>(by_bus.size()));
+        auto succeeded = std::make_shared<int>(0);
+        for (const auto& [bus_port, bus_goals] : by_bus) {
+            const auto it = buses_.find(bus_port);
+            if (it == buses_.end()) {
+                continue;
+            }
+            it->second.bridge->submit(
+                [bus_goals](servo_core::IServoDriver& driver) {
+                    for (const auto& goal : bus_goals) {
+                        if (const auto result =
+                                driver.stage_goal(goal.id, goal.ticks, goal.timeMs, goal.speed);
+                            !result) {
+                            return result;
+                        }
+                    }
+                    return servo_core::Result::success();
+                },
+                [this, progress, succeeded, staged_count = static_cast<int>(bus_goals.size())](
+                    const bool success, const QString& error) {
+                    if (success) {
+                        *succeeded += staged_count;
+                    }
+                    else {
+                        QMetaObject::invokeMethod(this, [this, error] { log("error", error); },
+                                                  Qt::QueuedConnection);
+                    }
+                    if (++progress->first == progress->second) {
+                        const int staged = *succeeded;
+                        QMetaObject::invokeMethod(
+                            this, [this, staged] { batch_dialog_->markStaged(staged); },
+                            Qt::QueuedConnection);
+                    }
+                });
+        }
+        log("info", QStringLiteral("Batch staging %1 goal(s) on %2 bus(es)")
+                        .arg(goals.size())
+                        .arg(by_bus.size()));
+    }
+
+    void MainWindow::handleBatchTrigger() {
+        int buses_triggered = 0;
+        for (const auto& [bus_port, entry] : buses_) {
+            ++buses_triggered;
+            entry.bridge->submit(
+                [](servo_core::IServoDriver& driver) { return driver.trigger_staged(); },
+                [this](const bool success, const QString& error) {
+                    if (success) {
+                        QMetaObject::invokeMethod(
+                            this, [this] { batch_dialog_->markTriggered(); },
+                            Qt::QueuedConnection);
+                    }
+                    else {
+                        QMetaObject::invokeMethod(this, [this, error] { log("error", error); },
+                                                  Qt::QueuedConnection);
+                    }
+                });
+        }
+        if (buses_triggered == 0) {
+            log("warn", "No connected bus");
+        }
     }
 
     void MainWindow::handleBackup(const QString& port, const servo_core::ServoId id) {

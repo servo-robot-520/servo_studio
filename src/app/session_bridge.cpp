@@ -120,6 +120,21 @@ namespace app {
             });
     }
 
+    void SessionBridge::queryStagedSupport(const QString& port) {
+        if (!session_) {
+            return;
+        }
+        auto supported = std::make_shared<bool>(false);
+        submit(
+            [supported](servo_core::IServoDriver& driver) {
+                *supported = driver.supports_staged_write();
+                return servo_core::Result::success();
+            },
+            [this, port, supported](bool, const QString&) {
+                emit stagedSupportKnown(port, *supported);
+            });
+    }
+
     void SessionBridge::traceFrame(const char* direction, const std::vector<uint8_t>& frame) {
         emit frameTraced(port_, QString::fromLatin1(direction),
                          QByteArray(reinterpret_cast<const char*>(frame.data()),

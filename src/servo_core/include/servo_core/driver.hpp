@@ -59,9 +59,31 @@ namespace servo_core {
         /// @brief 多舵机同步下发目标位置（SYNC WRITE 类操作）。
         ///        acc 语义同 write_goal。
         virtual Result sync_write_goals(const std::vector<ServoId>& ids,
-                                        const std::vector<int>& positions_ticks, int time_ms,
+                                        const std::vector<int>& positions_ticks,
+                                        const std::vector<int>& times_ms,
                                         const std::vector<int>& speeds_ticks_s,
-                                        int acc) = 0;
+                                        int acc = 0) = 0;
+
+        /// @brief 是否支持预存式下发（异步写：预存 → 触发）。
+        [[nodiscard]] virtual bool supports_staged_write() const {
+            return false;
+        }
+
+        /// @brief 预存目标位置（舵机不动作），待 trigger_staged() 触发生效。
+        virtual Result stage_goal(ServoId id, int position_ticks, int time_ms,
+                                  int speed_ticks_s, int acc = 0) {
+            (void)id;
+            (void)position_ticks;
+            (void)time_ms;
+            (void)speed_ticks_s;
+            (void)acc;
+            return Result::failure("staged write is not supported");
+        }
+
+        /// @brief 触发所有已预存目标生效（ACTION 广播）。
+        virtual Result trigger_staged() {
+            return Result::failure("staged write is not supported");
+        }
 
         /// @brief 扭矩开关。
         virtual Result set_torque(ServoId id, bool enabled) = 0;

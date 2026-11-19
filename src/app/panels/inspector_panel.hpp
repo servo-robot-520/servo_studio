@@ -56,6 +56,8 @@ namespace app {
                                   double minTicks, double maxTicks);
         /// 打开寄存器工作台弹窗。
         void registerRequested();
+        /// 打开批量操作弹窗。
+        void batchRequested();
 
     private slots:
         void onGoalValueChanged() const;
@@ -92,6 +94,7 @@ namespace app {
         QPushButton* jog_minus_button_;
         QPushButton* jog_plus_button_;
         QPushButton* home_button_;
+        QPushButton* batch_button_;
         QPushButton* register_button_;
 
         // 自动调试：往复/步进自动动作发生器（辅助人工整定）。

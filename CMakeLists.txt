@@ -70,6 +70,7 @@ add_executable(servo_studio
         src/app/panels/status_table.cpp
         src/app/panels/chart_panel.cpp
         src/app/panels/inspector_panel.cpp
+        src/app/panels/batch_dialog.cpp
         src/app/panels/params_dialog.cpp
         src/app/panels/log_panel.cpp
         src/app/resources/app.qrc)

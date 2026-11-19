@@ -62,8 +62,9 @@ namespace servo_core {
                 return Result::success();
             }
 
-            Result sync_write_goals(const std::vector<ServoId>&, const std::vector<int>&, int,
-                                    const std::vector<int>&, int) override {
+            Result sync_write_goals(const std::vector<ServoId>&, const std::vector<int>&,
+                                    const std::vector<int>&, const std::vector<int>&,
+                                    int) override {
                 record_call();
                 return Result::success();
             }

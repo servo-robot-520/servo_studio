@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "app/session_bridge.hpp"
+#include "app/panels/batch_dialog.hpp"
 #include "app/panels/inspector_panel.hpp"
 #include "servo_core/bus_session.hpp"
 
@@ -17,6 +18,7 @@ namespace app {
     class InspectorPanel;
     class LogPanel;
     class ParamsDialog;
+    class BatchDialog;
 
     /// @brief 主窗口：顶部连接面板，左侧设备树，中间监控区（曲线/状态表），
     ///        右侧检查器，底部日志。
@@ -53,6 +55,10 @@ namespace app {
         void handleBackup(const QString& port, servo_core::ServoId id);
         void handleRestore(const QString& port, servo_core::ServoId id);
 
+        void handleBatchSync(const QVector<BatchGoal>& goals);
+        void handleBatchStage(const QVector<BatchGoal>& goals);
+        void handleBatchTrigger();
+
     private:
         struct BusEntry {
             std::shared_ptr<servo_core::BusSession> session;
@@ -64,6 +70,7 @@ namespace app {
 
         void log(const QString& level, const QString& message) const;
         void applyPolling(const QString& port);
+        void refreshBatchDialog();
         [[nodiscard]] servo_core::ServoConfig configFor(const QString& port,
                                                         servo_core::ServoId id) const;
 
@@ -74,6 +81,7 @@ namespace app {
         InspectorPanel* inspector_panel_;
         LogPanel* log_panel_;
         ParamsDialog* params_dialog_;
+        BatchDialog* batch_dialog_;
         int poll_hz_{50};
         std::map<QString, BusEntry> buses_;
         std::map<QString, QVector<servo_core::ServoInfo>> bus_infos_;

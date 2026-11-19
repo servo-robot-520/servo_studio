@@ -107,14 +107,14 @@ namespace servo_backends {
             FeetechScsDriver driver;
             ASSERT_TRUE(driver.open(bus_config(bus.slave_path())));
 
-            ASSERT_TRUE(driver.sync_write_goals({1, 2}, {200, 300}, 0, {500, 600}));
+            ASSERT_TRUE(driver.sync_write_goals({1, 2}, {200, 300}, {0, 0}, {500, 600}));
             // SYNC WRITE 无应答，等待模拟总线消费该帧。
             ASSERT_TRUE(feetech_scs_ros2_control::test::wait_for([&] {
                 return bus.present_position(1) == 200 && bus.present_position(2) == 300;
             }));
 
-            // id/位置/速度数量不匹配必须被拒绝。
-            EXPECT_FALSE(driver.sync_write_goals({1, 2}, {200}, 0, {500, 600}));
+            // id/位置/时间/速度数量不匹配必须被拒绝。
+            EXPECT_FALSE(driver.sync_write_goals({1, 2}, {200}, {0, 0}, {500, 600}));
         }
 
         TEST(FeetechScsDriverTest, WriteParamUsesEepromSafeFlow) {
@@ -130,6 +130,25 @@ namespace servo_backends {
             // 范围外与未知键必须被拒绝。
             EXPECT_FALSE(driver.write_param(1, "max_temperature", 200));
             EXPECT_FALSE(driver.write_param(1, "no_such_param", 0));
+        }
+
+        TEST(FeetechScsDriverTest, StagedGoalDefersUntilTrigger) {
+            // 异步写：预存不动作，触发才生效。
+            FakeScsBus bus({1, 2});
+            FeetechScsDriver driver;
+            ASSERT_TRUE(driver.open(bus_config(bus.slave_path())));
+            ASSERT_TRUE(driver.supports_staged_write());
+
+            ASSERT_TRUE(driver.stage_goal(1, 600, 0, 500));
+            ASSERT_TRUE(driver.stage_goal(2, 700, 0, 500));
+            // 预存阶段不动作。
+            EXPECT_EQ(bus.present_position(1), 511);
+            EXPECT_EQ(bus.present_position(2), 511);
+
+            ASSERT_TRUE(driver.trigger_staged());
+            ASSERT_TRUE(feetech_scs_ros2_control::test::wait_for([&] {
+                return bus.present_position(1) == 600 && bus.present_position(2) == 700;
+            }));
         }
 
         TEST(FeetechScsDriverTest, ReadParamReadsBytesAndWords) {

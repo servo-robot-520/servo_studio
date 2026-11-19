@@ -83,6 +83,9 @@ namespace app {
         void restoreParameters(const QString& port, servo_core::ServoId id,
                                const QMap<QString, int>& params);
 
+        /// @brief 查询后端是否支持预存式下发，结果经 stagedSupportKnown 返回。
+        void queryStagedSupport(const QString& port);
+
         /// @brief 帧级调试入口（工作线程/驱动钩子调用），转 frameTraced 信号。
         void traceFrame(const char* direction, const std::vector<uint8_t>& frame);
 
@@ -104,6 +107,8 @@ namespace app {
                              const QString& error);
         /// 帧级收发（tx/rx + 原始字节），工作线程触发。
         void frameTraced(const QString& port, const QString& direction, const QByteArray& frame);
+        /// 预存能力探测结果，工作线程触发。
+        void stagedSupportKnown(const QString& port, bool supported);
         /// 会话运行状态变化。
         void runningChanged(bool running);
 
