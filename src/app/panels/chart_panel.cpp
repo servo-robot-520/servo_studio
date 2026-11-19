@@ -93,9 +93,28 @@ namespace app {
             channel.chart->addAxis(channel.axis_y, Qt::AlignLeft);
             channel.series->attachAxis(channel.axis_x);
             channel.series->attachAxis(channel.axis_y);
+            // 收紧图表边距，把空间让给绘图区。
+            channel.chart->setMargins(QMargins(2, 2, 2, 2));
 
             channel.view = new QChartView(channel.chart);
             channel.view->setMinimumHeight(140);
+
+            // 表头：曲线同色标注通道名（含单位），就地识别监控内容。
+            channel.header = new QLabel(
+                channel.unit.isEmpty()
+                    ? channel.title
+                    : QStringLiteral("%1 (%2)").arg(channel.title, channel.unit));
+            QFont header_font = channel.header->font();
+            header_font.setWeight(QFont::DemiBold);
+            channel.header->setFont(header_font);
+            channel.header->setStyleSheet(QStringLiteral("color: %1;").arg(channel.color.name()));
+
+            channel.container = new QWidget;
+            auto* cell = new QVBoxLayout(channel.container);
+            cell->setContentsMargins(0, 0, 0, 0);
+            cell->setSpacing(2);
+            cell->addWidget(channel.header);
+            cell->addWidget(channel.view);
 
             // 通道开关常驻于顶部开关行，不随小图隐藏，
             // 保证取消后随时可以重新勾选。
@@ -109,7 +128,7 @@ namespace app {
         }
         toggle_row->addStretch(1);
         grid_ = new QGridLayout;
-        grid_->setSpacing(8);
+        grid_->setSpacing(6);
         for (int column = 0; column < 6; ++column) {
             grid_->setColumnStretch(column, 1);
         }
@@ -143,10 +162,10 @@ namespace app {
 
         // 只剩一个通道时独占整个监控区。
         if (visible.size() == 1) {
-            grid_->addWidget(visible.front()->view, 0, 0, 2, 6);
+            grid_->addWidget(visible.front()->container, 0, 0, 2, 6);
             grid_->setRowStretch(0, 1);
             grid_->setRowStretch(1, 1);
-            visible.front()->view->show();
+            visible.front()->container->show();
             return;
         }
 
@@ -170,9 +189,9 @@ namespace app {
                 if (index + 1 == cells.size()) {
                     span += 2 - cell; // 行尾缺口并入最后一个可见格位。
                 }
-                grid_->addWidget(channels_[static_cast<size_t>(row * 3 + cell)].view,
+                grid_->addWidget(channels_[static_cast<size_t>(row * 3 + cell)].container,
                                  row, (previous + 1) * 2, 1, span * 2);
-                channels_[static_cast<size_t>(row * 3 + cell)].view->show();
+                channels_[static_cast<size_t>(row * 3 + cell)].container->show();
                 previous = cell;
             }
             grid_->setRowStretch(row, 1);
