@@ -76,8 +76,8 @@ namespace app {
         header->setSectionResizeMode(kColumnValue, QHeaderView::Fixed);
         header->resizeSection(kColumnValue, 110);
         header->setSectionResizeMode(kColumnArea, QHeaderView::ResizeToContents);
-        header->setSectionResizeMode(kColumnAction, QHeaderView::Fixed);
-        header->resizeSection(kColumnAction, 60);
+        header->setSectionResizeMode(kColumnAction, QHeaderView::Interactive);
+        header->resizeSection(kColumnAction, 80);
         layout->addWidget(table_, 1);
 
         // 点击值列进入编辑；换行/点击别处即提交，避免悬停滚轮误触。
