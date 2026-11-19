@@ -42,6 +42,18 @@ namespace servo_backends {
             const auto identity = driver.identify(2);
             ASSERT_TRUE(identity);
             EXPECT_EQ(identity.value().model_number, kModelSc215);
+            EXPECT_DOUBLE_EQ(identity.value().max_range_deg, 300.0);
+        }
+
+        TEST(FeetechScsDriverTest, TravelRangeBoundedByModel) {
+            // SCS 系列最大有效角度 300°，行程设置不得超出型号上限。
+            FeetechScsDriver driver;
+            ServoConfig config;
+            config.id = 1;
+            config.range_deg = 360.0;
+            EXPECT_FALSE(driver.set_servo_config(config));
+            config.range_deg = 300.0;
+            EXPECT_TRUE(driver.set_servo_config(config));
         }
 
         TEST(FeetechScsDriverTest, ReadStateConvertsUnits) {

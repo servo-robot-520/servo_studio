@@ -75,6 +75,8 @@ namespace servo_core {
         uint8_t firmware_major{};
         /// 固件次版本号。
         uint8_t firmware_minor{};
+        /// 型号允许的最大机械行程（度）。
+        double max_range_deg{360.0};
     };
 
     /// @brief 实时状态；物理量用常用单位，位置/速度同时给出原始计数。

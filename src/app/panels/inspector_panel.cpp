@@ -252,15 +252,18 @@ namespace app {
     }
 
     void InspectorPanel::setSubject(const QString& port, const servo_core::ServoId id,
-                                    const servo_core::ServoConfig& config) {
+                                    const servo_core::ServoConfig& config,
+                                    const double maxRangeDeg) {
         if (has_subject_ && subject_port_ == port && subject_id_ == id) {
             return;
         }
         subject_port_ = port;
         subject_id_ = id;
         subject_config_ = config;
+        max_range_deg_ = maxRangeDeg;
         has_subject_ = true;
 
+        range_spin_->setRange(0.1, max_range_deg_);
         updateConfig(config);
         ticks_spin_->setValue(static_cast<int>(config.center_ticks));
         param_table_->setRowCount(0);

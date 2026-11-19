@@ -301,13 +301,15 @@ namespace app {
         subject_id_ = id;
 
         QString model = "unknown";
+        double max_range_deg = 360.0;
         for (const auto& info : bus_infos_[port]) {
             if (info.id == id) {
                 model = QString::fromStdString(info.model);
+                max_range_deg = info.max_range_deg;
                 break;
             }
         }
-        inspector_panel_->setSubject(port, id, configFor(port, id));
+        inspector_panel_->setSubject(port, id, configFor(port, id), max_range_deg);
         chart_panel_->setSubject(port, id, model);
         if (const auto it = buses_.find(port); it != buses_.end()) {
             it->second.bridge->readParameters(port, id);

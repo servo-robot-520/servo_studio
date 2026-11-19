@@ -14,6 +14,9 @@ namespace servo_backends {
         namespace scs = feetech_servo_ros2_control;
         namespace core = servo_core;
 
+        // SCS 系列最大有效角度（内存表“最大有效角度”），机械行程上限。
+        constexpr double kMaxRangeDeg = 300.0;
+
         int clamp_ticks(const int ticks, const ServoConfig& config) {
             const int lower = std::max(0, static_cast<int>(std::lround(config.min_ticks)));
             const int upper = std::min(static_cast<int>(scs::kPositionTicks) - 1,
@@ -88,6 +91,10 @@ namespace servo_backends {
         if (config.range_deg <= 0.0) {
             return Result::failure("range_deg must be positive");
         }
+        if (config.range_deg > kMaxRangeDeg) {
+            return Result::failure("range_deg must not exceed " + std::to_string(kMaxRangeDeg) +
+                                   " for SCS servos");
+        }
         if (config.min_ticks > config.max_ticks) {
             return Result::failure("min_ticks must not exceed max_ticks");
         }
@@ -102,13 +109,14 @@ namespace servo_backends {
     }
 
     ServoInfo FeetechScsDriver::to_info(const ServoId id,
-                                     const scs::ScsServoIdentity& identity) {
+                                        const scs::ScsServoIdentity& identity) {
         ServoInfo info;
         info.id = id;
         info.model_number = identity.model;
         info.model = std::string(scs::model_name(identity.model));
         info.firmware_major = identity.firmware_major;
         info.firmware_minor = identity.firmware_minor;
+        info.max_range_deg = kMaxRangeDeg;
         return info;
     }
 

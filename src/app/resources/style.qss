@@ -104,7 +104,7 @@ QPushButton#danger:hover {
 
 /* ---------- 输入控件 ---------- */
 
-QComboBox, QSpinBox, QLineEdit {
+QComboBox, QSpinBox, QDoubleSpinBox, QLineEdit {
     background: #1D222A;
     border: 1px solid #323B45;
     border-radius: 6px;
@@ -115,7 +115,7 @@ QComboBox, QSpinBox, QLineEdit {
     selection-color: #15181D;
 }
 
-QComboBox:focus, QSpinBox:focus, QLineEdit:focus {
+QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus, QLineEdit:focus {
     border: 1px solid #E8B44A;
 }
 
@@ -138,7 +138,8 @@ QComboBox QAbstractItemView {
     selection-color: #15181D;
 }
 
-QSpinBox::up-button, QSpinBox::down-button {
+QSpinBox::up-button, QSpinBox::down-button,
+QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
     background: #252C35;
     border: none;
     width: 18px;

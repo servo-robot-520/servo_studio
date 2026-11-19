@@ -27,8 +27,9 @@ namespace app {
 
         /// 设置监控对象并按配置初始化换算；同一对象重复调用为空操作。
         /// 主题信息（串口/id/型号）由监控区统一展示，此处不再重复。
+        /// @param maxRangeDeg 型号允许的最大机械行程，约束行程输入。
         void setSubject(const QString& port, servo_core::ServoId id,
-                        const servo_core::ServoConfig& config);
+                        const servo_core::ServoConfig& config, double maxRangeDeg = 360.0);
         /// 更新当前对象的换算配置（不重置参数表）。
         void updateConfig(const servo_core::ServoConfig& config);
         /// 清空监控对象。
@@ -76,6 +77,7 @@ namespace app {
         QString subject_port_;
         servo_core::ServoId subject_id_{};
         servo_core::ServoConfig subject_config_;
+        double max_range_deg_{360.0};
         bool has_subject_{false};
 
         QSpinBox* ticks_spin_;
