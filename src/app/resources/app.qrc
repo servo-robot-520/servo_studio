@@ -2,5 +2,6 @@
     <qresource prefix="/">
         <file>style.qss</file>
         <file>arrow-down.png</file>
+        <file>arrow-up.png</file>
     </qresource>
 </RCC>
