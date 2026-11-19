@@ -41,6 +41,8 @@ namespace app {
                         const servo_core::ServoConfig& config, double maxRangeDeg = 360.0);
         /// 更新当前对象的换算配置。
         void updateConfig(const servo_core::ServoConfig& config);
+        /// 扭矩档位：固件支持阻尼档时三态，否则两态（UBTECH 系固件无阻尼）。
+        void setTorqueModes(bool damping_supported) const;
         /// 清空监控对象。
         void clear();
 

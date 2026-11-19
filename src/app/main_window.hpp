@@ -52,7 +52,7 @@ namespace app {
                               int moveMs, int lockMs);
         void handleUbtechStop(const QString& port, servo_core::ServoId id);
         void handleUbtechReadAngle(const QString& port, servo_core::ServoId id);
-        void onBackendChanged(const QString& backend);
+        void onBackendChanged(const QString& backend) const;
         void openParamsDialog();
         void handleParamWrite(const QString& port, servo_core::ServoId id, const QString& key,
                               int value, const QString& valueText);
@@ -79,7 +79,7 @@ namespace app {
         void applyPolling(const QString& port);
         /// 操作面板按协议二选一显示（UBTECH 专用面板 / 飞特检查器），
         /// UBTECH 无遥测，监控列随之隐藏。
-        void applyProtocolPanel(bool is_ubtech);
+        void applyProtocolPanel(bool is_ubtech) const;
         void refreshBatchDialog();
         [[nodiscard]] servo_core::ServoConfig configFor(const QString& port,
                                                         servo_core::ServoId id) const;

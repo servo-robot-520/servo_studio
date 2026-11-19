@@ -1,5 +1,7 @@
 #include "app/panels/status_table.hpp"
 
+#include <cmath>
+
 #include <QHeaderView>
 
 namespace app {
@@ -70,13 +72,18 @@ namespace app {
             if (row < 0) {
                 row = insertRowFor(port, state);
             }
-            item(row, kColumnPositionTicks)->setText(QString::number(state.position_ticks, 'f', 1));
-            item(row, kColumnPositionDeg)->setText(QString::number(state.position_deg, 'f', 2));
-            item(row, kColumnVelocity)->setText(QString::number(state.velocity_deg_s, 'f', 1));
-            item(row, kColumnLoad)->setText(QString::number(state.load, 'f', 3));
-            item(row, kColumnVoltage)->setText(QString::number(state.voltage, 'f', 2));
-            item(row, kColumnTemperature)->setText(QString::number(state.temperature, 'f', 0));
-            item(row, kColumnCurrent)->setText(QString::number(state.current, 'f', 3));
+            // 无效遥测（如 mega8 假值填 NaN）显示 "--"。
+            const auto text = [](const double value, const char format, const int precision) {
+                return std::isnan(value) ? QStringLiteral("--")
+                                         : QString::number(value, format, precision);
+            };
+            item(row, kColumnPositionTicks)->setText(text(state.position_ticks, 'f', 1));
+            item(row, kColumnPositionDeg)->setText(text(state.position_deg, 'f', 2));
+            item(row, kColumnVelocity)->setText(text(state.velocity_deg_s, 'f', 1));
+            item(row, kColumnLoad)->setText(text(state.load, 'f', 3));
+            item(row, kColumnVoltage)->setText(text(state.voltage, 'f', 2));
+            item(row, kColumnTemperature)->setText(text(state.temperature, 'f', 0));
+            item(row, kColumnCurrent)->setText(text(state.current, 'f', 3));
             item(row, kColumnMoving)->setText(state.moving ? tr("是") : tr("否"));
         }
     }

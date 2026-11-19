@@ -443,6 +443,18 @@ namespace app {
         return has_subject_;
     }
 
+    void InspectorPanel::setTorqueModes(const bool damping_supported) const {
+        // 固件无阻尼档（UBTECH 系）时收成两态：自由 / 锁紧。
+        const bool blocked = torque_combo_->blockSignals(true);
+        while (torque_combo_->count() > 2) {
+            torque_combo_->removeItem(torque_combo_->count() - 1);
+        }
+        if (damping_supported && torque_combo_->count() == 2) {
+            torque_combo_->addItem(tr("阻尼"), 2);
+        }
+        torque_combo_->blockSignals(blocked);
+    }
+
     void InspectorPanel::updateConfig(const servo_core::ServoConfig& config) {
         subject_config_ = config;
         ticks_spin_->setRange(static_cast<int>(config.min_ticks),
@@ -457,9 +469,9 @@ namespace app {
         auto_end_spin_->setRange(static_cast<int>(config.min_ticks),
                                  static_cast<int>(config.max_ticks));
         // 自动调试角度输入按当前换算配置刷新；区间变更的钳位不参与同步。
-        const double deg_low = servo_core::ticks_to_degrees(config, config.min_ticks);
-        const double deg_high = servo_core::ticks_to_degrees(config, config.max_ticks);
         {
+            const double deg_low = servo_core::ticks_to_degrees(config, config.min_ticks);
+            const double deg_high = servo_core::ticks_to_degrees(config, config.max_ticks);
             const QSignalBlocker block_start(auto_start_deg_spin_);
             const QSignalBlocker block_end(auto_end_deg_spin_);
             const QSignalBlocker block_step(auto_step_deg_spin_);

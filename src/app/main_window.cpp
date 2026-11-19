@@ -250,7 +250,14 @@ namespace app {
                     device_tree_->setServos(bus_port, infos);
                     bus_infos_[bus_port] = infos;
                     for (const auto& info : infos) {
-                        configs_[bus_port].try_emplace(info.id, configFor(bus_port, info.id));
+                        // 播种换算配置：型号默认几何（ticks↔度/钳位）优先于通用默认；
+                        // 已有配置不覆盖（try_emplace 保序保留）。
+                        servo_core::ServoConfig seeded = configFor(bus_port, info.id);
+                        if (info.defaults.full_scale_ticks > 0) {
+                            seeded = info.defaults;
+                            seeded.id = info.id;
+                        }
+                        configs_[bus_port].try_emplace(info.id, seeded);
                     }
                     applyPolling(bus_port);
                     connection_panel_->setScanning(false);
@@ -379,7 +386,7 @@ namespace app {
         it->second.bridge->setPolling(std_ids, poll_hz_);
     }
 
-    void MainWindow::applyProtocolPanel(const bool is_ubtech) {
+    void MainWindow::applyProtocolPanel(const bool is_ubtech) const {
         monitor_->setVisible(!is_ubtech);
         if (is_ubtech) {
             inspector_panel_->hide();
@@ -391,10 +398,11 @@ namespace app {
         }
     }
 
-    void MainWindow::onBackendChanged(const QString& backend) {
+    void MainWindow::onBackendChanged(const QString& backend) const {
         // 连接前即时预览协议界面（协议下拉一变就切面板）；连接期间下拉锁定，
         // 选中舵机后仍以其所属总线协议为准（onServoSelected 重新应用）。
         applyProtocolPanel(backend == QStringLiteral("ubtech"));
+        inspector_panel_->setTorqueModes(backend != QStringLiteral("ubtech_liqiulong123"));
     }
 
     void MainWindow::onServoSelected() {
@@ -433,8 +441,9 @@ namespace app {
         }
         // 操作面板按协议二选一：UBTECH 功能面与飞特差异大，使用专用面板；
         // 遥测监控（曲线/状态表）对 UBTECH 隐藏（无遥测且禁轮询）。
-        const bool is_ubtech =
-            buses_.contains(port) && buses_[port].driver_name == QStringLiteral("ubtech");
+        const QString driver_name =
+            buses_.contains(port) ? buses_[port].driver_name : QString();
+        const bool is_ubtech = driver_name == QStringLiteral("ubtech");
         applyProtocolPanel(is_ubtech);
         if (is_ubtech) {
             inspector_panel_->clear();
@@ -442,6 +451,9 @@ namespace app {
         }
         else {
             ubtech_panel_->clear();
+            // UBTECH 系固件无阻尼档，扭矩收两态。
+            inspector_panel_->setTorqueModes(
+                driver_name != QStringLiteral("ubtech_liqiulong123"));
             inspector_panel_->setSubject(port, id, configFor(port, id), max_range_deg);
         }
         chart_panel_->setSubject(port, id, model);

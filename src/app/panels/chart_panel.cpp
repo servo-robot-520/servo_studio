@@ -273,6 +273,9 @@ namespace app {
         for (size_t index = 0; index < channels_.size(); ++index) {
             auto& channel = channels_[index];
             const double y = channel.value(*subject);
+            if (std::isnan(y)) {
+                continue; // 无效遥测（如 mega8 假值填 NaN）：图表断点不描点
+            }
             channel.points.emplace_back(now, y);
             channel.series->append(now, y);
 
@@ -310,7 +313,7 @@ namespace app {
                 continue;
             }
             if (event->type() == QEvent::Wheel) {
-                auto* wheel = static_cast<QWheelEvent*>(event);
+                const auto* wheel = dynamic_cast<QWheelEvent*>(event);
                 if (wheel->angleDelta().y() == 0) {
                     return true;
                 }
