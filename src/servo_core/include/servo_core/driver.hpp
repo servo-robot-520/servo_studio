@@ -48,6 +48,18 @@ namespace servo_core {
         /// @brief 读取单个舵机身份。
         virtual Expected<ServoInfo> identify(ServoId id) = 0;
 
+        /// @brief 支持的遥测通道（按舵机查询，同总线可混型号）。
+        ///        不支持的通道 read_state 填 NaN、界面显示 "--"。
+        [[nodiscard]] virtual TelemetryChannels telemetry_channels(const ServoId id) const {
+            (void)id;
+            return {};
+        }
+
+        /// @brief 总线级驱动能力（扭矩档位/轮询安全/操作面板形态）。
+        [[nodiscard]] virtual DriverCapabilities capabilities() const {
+            return {};
+        }
+
         /// @brief 读取实时状态（位置/速度含原始计数与换算值）。
         virtual Expected<ServoState> read_state(ServoId id) = 0;
 

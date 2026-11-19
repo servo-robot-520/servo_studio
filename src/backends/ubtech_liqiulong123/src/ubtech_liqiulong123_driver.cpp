@@ -76,7 +76,7 @@ namespace servo_backends {
         constexpr int kBaudCodes[] = {1000000, 500000, 250000, 128000, 921600};
 
         uint8_t checksum(const uint8_t id, const uint8_t length, const uint8_t* body) {
-            uint8_t sum = static_cast<uint8_t>(id + length);
+            auto sum = static_cast<uint8_t>(id + length);
             for (int i = 0; i < length - 1; ++i) { // body 末字节是校验和本身
                 sum = static_cast<uint8_t>(sum + body[i]);
             }
@@ -85,7 +85,7 @@ namespace servo_backends {
     } // namespace
 
     UbtechLiqiulong123Driver::~UbtechLiqiulong123Driver() {
-        close();
+        UbtechLiqiulong123Driver::close();
     }
 
     void UbtechLiqiulong123Driver::set_trace_hook(TraceHook hook) {
@@ -94,8 +94,7 @@ namespace servo_backends {
 
     Result UbtechLiqiulong123Driver::open(const BusConfig& config) {
         // 传输层复用飞特串口（8N1 原始模式，任意波特率；mega8 = 921600）。
-        const auto result = port_.open(config.port, config.baud_rate);
-        if (!result) {
+        if (const auto result = port_.open(config.port, config.baud_rate); !result) {
             return Result::failure(result.error());
         }
         timeout_ms_ = std::max(1, config.response_timeout_ms);
@@ -234,8 +233,7 @@ namespace servo_backends {
     }
 
     Result UbtechLiqiulong123Driver::persist_if_mega8(const ServoId id) {
-        const auto variant = variant_for(id);
-        if (variant && variant.value() == Variant::kMega8) {
+        if (const auto variant = variant_for(id); variant && variant.value() == Variant::kMega8) {
             // mega8：写 49=0xA5 才落 EEPROM，否则掉电即丢。
             return write_reg(id, kRegSaveTrigger, 0xA5, 1);
         }
@@ -295,6 +293,22 @@ namespace servo_backends {
     Result UbtechLiqiulong123Driver::set_servo_config(const ServoConfig& config) {
         configs_[config.id] = config;
         return Result::success();
+    }
+
+    TelemetryChannels UbtechLiqiulong123Driver::telemetry_channels(const ServoId id) const {
+        TelemetryChannels channels;
+        if (const auto it = variants_.find(id); it != variants_.end() && it->second == Variant::kMega8) {
+            // mega8 板无电压/温度/电流采样（寄存器为假值）。
+            channels.voltage = false;
+            channels.temperature = false;
+            channels.current = false;
+        }
+        return channels;
+    }
+
+    DriverCapabilities UbtechLiqiulong123Driver::capabilities() const {
+        // 无阻尼档；read_state 无副作用可轮询；使用通用检查器。
+        return {.torque_damping = false, .polling_safe = true, .uses_protocol_panel = false};
     }
 
     namespace {
@@ -807,7 +821,7 @@ namespace servo_backends {
         if (spec == nullptr) {
             return Expected<int>::failure("Unknown parameter '" + key + "'");
         }
-        const auto value = read_reg(id, static_cast<uint8_t>(spec->address), spec->bytes);
+        auto value = read_reg(id, static_cast<uint8_t>(spec->address), spec->bytes);
         if (!value) {
             return Expected<int>::failure(value.error());
         }
@@ -835,7 +849,7 @@ namespace servo_backends {
             if (const auto result = write_reg(id, kRegLock, 0, 1); !result) {
                 return result;
             }
-            const ServoId new_id = static_cast<ServoId>(value);
+            const auto new_id = static_cast<ServoId>(value);
             const auto reply =
                 transact(id, kWrite, {kRegId, static_cast<uint8_t>(value)}, false, {new_id});
             if (!reply) {
@@ -845,11 +859,11 @@ namespace servo_backends {
                 return result;
             }
             // 本地缓存随 ID 迁移。
-            if (auto it = variants_.find(id); it != variants_.end()) {
+            if (const auto it = variants_.find(id); it != variants_.end()) {
                 variants_[new_id] = it->second;
                 variants_.erase(it);
             }
-            if (auto it = configs_.find(id); it != configs_.end()) {
+            if (const auto it = configs_.find(id); it != configs_.end()) {
                 auto config = it->second;
                 config.id = new_id;
                 configs_.erase(it);
@@ -877,8 +891,7 @@ namespace servo_backends {
             return Result::failure("Work mode 2 is not supported (0=position 1=wheel 3=torque)");
         }
         if (key == "baud_rate") {
-            const auto variant = variant_for(id);
-            if (variant && variant.value() == Variant::kMega8) {
+            if (const auto variant = variant_for(id); variant && variant.value() == Variant::kMega8) {
                 return Result::failure("Mega8 firmware runs at fixed 921600; baud code is inert");
             }
             // ⚠ 码 4 = 921600（非飞特的 115200）；写入即生效，需按新波特率重连。
@@ -901,12 +914,13 @@ namespace servo_backends {
         variants_[id] = variant;
         ServoInfo info;
         info.id = id;
-        info.model = variant == Variant::kMega8 ? "UBTECH-LQ Mega8" : "UBTECH-LQ SAMD10";
+        info.model = variant == Variant::kMega8 ? "UBTECH-LQL Mega8" : "UBTECH-LQL SAMD10";
         info.model_number = 0; // 协议无型号寄存器
         info.firmware_major = major;
         info.firmware_minor = minor;
         info.max_range_deg = 360.0;
         info.defaults = default_config(variant, id);
+        info.channels = telemetry_channels(id);
         return Expected<ServoInfo>(info);
     }
 
@@ -922,17 +936,17 @@ namespace servo_backends {
             if (!transact(id, kPing, {}, true)) {
                 continue;
             }
-            const auto info = identify(id);
-            if (info) {
+            if (const auto info = identify(id)) {
                 infos.push_back(info.value());
             }
             else {
                 // PING 通但版本读失败：保留行，型号未知。
                 ServoInfo fallback;
                 fallback.id = id;
-                fallback.model = "UBTECH-LQ";
+                fallback.model = "UBTECH-LQL";
                 fallback.max_range_deg = 360.0;
                 fallback.defaults = default_config(Variant::kSamd10, id);
+                fallback.channels = telemetry_channels(id);
                 infos.push_back(fallback);
             }
         }
@@ -967,11 +981,12 @@ namespace servo_backends {
         else {
             load = std::clamp(u16(4) / 200.0, 0.0, 1.0);
         }
-        const double nan = std::numeric_limits<double>::quiet_NaN();
-        // mega8 的电压/温度/电流是假值（74/25/0），填 NaN 由 UI 显示 "--"。
-        const double voltage = v == Variant::kMega8 ? nan : p[6] / 10.0;
-        const double temperature = v == Variant::kMega8 ? nan : p[7];
-        const double current = v == Variant::kMega8 ? nan : u16(13) / 100.0;
+        constexpr double nan = std::numeric_limits<double>::quiet_NaN();
+        // 不支持的通道按能力填 NaN（mega8 电压/温度/电流为假值），UI 显示 "--"。
+        const auto channels = telemetry_channels(id);
+        const double voltage = channels.voltage ? p[6] / 10.0 : nan;
+        const double temperature = channels.temperature ? p[7] : nan;
+        const double current = channels.current ? u16(13) / 100.0 : nan;
 
         const auto& config = config_for(id);
         ServoState state;
@@ -1057,8 +1072,7 @@ namespace servo_backends {
                 params.push_back(static_cast<uint8_t>(speed >> 8));
                 params.push_back(static_cast<uint8_t>(speed & 0xFF));
             }
-            const auto reply = transact(kBroadcastId, kSyncWrite, params, false);
-            if (!reply) {
+            if (const auto reply = transact(kBroadcastId, kSyncWrite, params, false); !reply) {
                 return Result::failure(reply.error());
             }
         }
@@ -1070,15 +1084,14 @@ namespace servo_backends {
         if (variants_.empty()) {
             return true;
         }
-        return std::any_of(variants_.begin(), variants_.end(),
-                           [](const auto& entry) { return entry.second == Variant::kSamd10; });
+        return std::ranges::any_of(variants_,
+                                   [](const auto& entry) { return entry.second == Variant::kSamd10; });
     }
 
     Result UbtechLiqiulong123Driver::stage_goal(const ServoId id, const int position_ticks,
                                                 const int time_ms, const int speed_ticks_s,
                                                 const int acc) {
-        const auto variant = variant_for(id);
-        if (variant && variant.value() == Variant::kMega8) {
+        if (const auto variant = variant_for(id); variant && variant.value() == Variant::kMega8) {
             return Result::failure("Mega8 firmware does not implement REG_WRITE/ACTION");
         }
         const auto& config = config_for(id);
@@ -1141,8 +1154,7 @@ namespace servo_backends {
         }
         std::vector<uint8_t> params{address};
         params.insert(params.end(), data.begin(), data.end());
-        const auto reply = transact(id, kWrite, params, false);
-        if (!reply) {
+        if (const auto reply = transact(id, kWrite, params, false); !reply) {
             return Result::failure(reply.error());
         }
         if (touch_lock) {

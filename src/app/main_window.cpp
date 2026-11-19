@@ -1,6 +1,7 @@
 #include "app/main_window.hpp"
 
 #include <QSignalBlocker>
+#include <limits>
 #include <ranges>
 
 #include <QCloseEvent>
@@ -239,8 +240,15 @@ namespace app {
                 });
         connect(bridge, &SessionBridge::statesReceived, this,
                 [this](const QString& bus_port, const QVector<servo_core::ServoState>& states) {
-                    status_table_->updateStates(bus_port, states);
-                    chart_panel_->appendStates(bus_port, states);
+                    // 监控区按遥测能力掩码：不支持的通道显示 "--"（图表断点）；
+                    // 操作面板收到原始状态（单次回读的读数不掩码）。
+                    QVector<servo_core::ServoState> masked;
+                    masked.reserve(states.size());
+                    for (const auto& state : states) {
+                        masked.push_back(maskTelemetry(bus_port, state));
+                    }
+                    status_table_->updateStates(bus_port, masked);
+                    chart_panel_->appendStates(bus_port, masked);
                     for (const auto& state : states) {
                         ubtech_panel_->updateState(bus_port, state);
                     }
@@ -259,6 +267,23 @@ namespace app {
                         }
                         configs_[bus_port].try_emplace(info.id, seeded);
                     }
+                    // 播种状态表行：先全通道 "--"，有遥测后随轮询/回读刷新。
+                    QVector<servo_core::ServoState> seeded_rows;
+                    const double nan = std::numeric_limits<double>::quiet_NaN();
+                    for (const auto& info : infos) {
+                        servo_core::ServoState blank;
+                        blank.id = info.id;
+                        blank.position_ticks = nan;
+                        blank.position_deg = nan;
+                        blank.velocity_ticks_s = nan;
+                        blank.velocity_deg_s = nan;
+                        blank.load = nan;
+                        blank.voltage = nan;
+                        blank.temperature = nan;
+                        blank.current = nan;
+                        seeded_rows.push_back(blank);
+                    }
+                    status_table_->updateStates(bus_port, seeded_rows);
                     applyPolling(bus_port);
                     connection_panel_->setScanning(false);
                     refreshBatchDialog();
@@ -375,9 +400,9 @@ namespace app {
         if (it == buses_.end()) {
             return;
         }
-        // UBTECH 角度回读有失电副作用：该协议总线禁止任何轮询，
-        // 只允许操作面板手动单次读取。
-        if (it->second.driver_name == QStringLiteral("ubtech")) {
+        // read_state 有副作用的协议（如 UBTECH 角度回读即失电）禁用自动轮询，
+        // 仅允许操作面板手动单次读取。
+        if (!capabilitiesFor(it->second.driver_name).polling_safe) {
             it->second.bridge->setPolling({}, 0);
             return;
         }
@@ -386,9 +411,9 @@ namespace app {
         it->second.bridge->setPolling(std_ids, poll_hz_);
     }
 
-    void MainWindow::applyProtocolPanel(const bool is_ubtech) const {
-        monitor_->setVisible(!is_ubtech);
-        if (is_ubtech) {
+    void MainWindow::applyProtocolPanel(const bool uses_protocol_panel) {
+        // 操作面板按协议能力二选一；监控列常显，不支持的通道由遥测能力掩码为 "--"。
+        if (uses_protocol_panel) {
             inspector_panel_->hide();
             ubtech_panel_->show();
         }
@@ -398,11 +423,58 @@ namespace app {
         }
     }
 
-    void MainWindow::onBackendChanged(const QString& backend) const {
+    servo_core::DriverCapabilities MainWindow::capabilitiesFor(
+        const QString& driver_name) const {
+        const auto driver =
+            servo_core::DriverRegistry::instance().create(driver_name.toStdString());
+        if (!driver) {
+            return {};
+        }
+        return driver->capabilities();
+    }
+
+    servo_core::ServoState MainWindow::maskTelemetry(const QString& port,
+                                                     const servo_core::ServoState& state) const {
+        servo_core::TelemetryChannels channels;
+        if (const auto it = bus_infos_.find(port); it != bus_infos_.end()) {
+            for (const auto& info : it->second) {
+                if (info.id == state.id) {
+                    channels = info.channels;
+                    break;
+                }
+            }
+        }
+        servo_core::ServoState masked = state;
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        if (!channels.position) {
+            masked.position_ticks = nan;
+            masked.position_deg = nan;
+        }
+        if (!channels.velocity) {
+            masked.velocity_ticks_s = nan;
+            masked.velocity_deg_s = nan;
+        }
+        if (!channels.load) {
+            masked.load = nan;
+        }
+        if (!channels.voltage) {
+            masked.voltage = nan;
+        }
+        if (!channels.temperature) {
+            masked.temperature = nan;
+        }
+        if (!channels.current) {
+            masked.current = nan;
+        }
+        return masked;
+    }
+
+    void MainWindow::onBackendChanged(const QString& backend) {
         // 连接前即时预览协议界面（协议下拉一变就切面板）；连接期间下拉锁定，
         // 选中舵机后仍以其所属总线协议为准（onServoSelected 重新应用）。
-        applyProtocolPanel(backend == QStringLiteral("ubtech"));
-        inspector_panel_->setTorqueModes(backend != QStringLiteral("ubtech_liqiulong123"));
+        const auto caps = capabilitiesFor(backend);
+        applyProtocolPanel(caps.uses_protocol_panel);
+        inspector_panel_->setTorqueModes(caps.torque_damping);
     }
 
     void MainWindow::onServoSelected() {
@@ -443,17 +515,16 @@ namespace app {
         // 遥测监控（曲线/状态表）对 UBTECH 隐藏（无遥测且禁轮询）。
         const QString driver_name =
             buses_.contains(port) ? buses_[port].driver_name : QString();
-        const bool is_ubtech = driver_name == QStringLiteral("ubtech");
-        applyProtocolPanel(is_ubtech);
-        if (is_ubtech) {
+        const auto caps = capabilitiesFor(driver_name);
+        applyProtocolPanel(caps.uses_protocol_panel);
+        if (caps.uses_protocol_panel) {
             inspector_panel_->clear();
             ubtech_panel_->setSubject(port, id);
         }
         else {
             ubtech_panel_->clear();
-            // UBTECH 系固件无阻尼档，扭矩收两态。
-            inspector_panel_->setTorqueModes(
-                driver_name != QStringLiteral("ubtech_liqiulong123"));
+            // 无阻尼档的固件扭矩收两态。
+            inspector_panel_->setTorqueModes(caps.torque_damping);
             inspector_panel_->setSubject(port, id, configFor(port, id), max_range_deg);
         }
         chart_panel_->setSubject(port, id, model);

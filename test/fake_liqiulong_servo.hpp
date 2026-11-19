@@ -18,7 +18,7 @@
 
 namespace servo_backends::test {
 
-    /// @brief 基于伪终端的 MicroDuck（UBTECH-LQ）总线模拟器。
+    /// @brief 基于伪终端的 MicroDuck（UBTECH-LQL）总线模拟器。
     ///
     /// 按固件行为应答 SCS 帧：PING/READ/WRITE/SYNC_WRITE（双变体），
     /// REG_WRITE/ACTION/SYNC_READ（仅 SAMD10）；实现锁门（48=1 拒写 cfg，

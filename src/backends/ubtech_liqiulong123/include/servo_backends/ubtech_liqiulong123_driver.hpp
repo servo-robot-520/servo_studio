@@ -12,6 +12,7 @@
 namespace servo_backends {
 
     using servo_core::BusConfig;
+    using servo_core::DriverCapabilities;
     using servo_core::Expected;
     using servo_core::IServoDriver;
     using servo_core::ParamDescriptor;
@@ -20,6 +21,7 @@ namespace servo_backends {
     using servo_core::ServoId;
     using servo_core::ServoInfo;
     using servo_core::ServoState;
+    using servo_core::TelemetryChannels;
 
     /// @brief UBTECH 拆机舵机 + 白菜总线舵机（MicroDuck 固件）后端。
     ///
@@ -53,6 +55,10 @@ namespace servo_backends {
         [[nodiscard]] bool is_open() const override;
 
         Result set_servo_config(const ServoConfig& config) override;
+
+        /// mega8 无电压/温度/电流采样（寄存器为假值），按变体返回通道支持。
+        [[nodiscard]] TelemetryChannels telemetry_channels(ServoId id) const override;
+        [[nodiscard]] DriverCapabilities capabilities() const override;
 
         Expected<std::vector<ServoInfo>> scan(int first_id, int last_id) override;
         Expected<ServoInfo> identify(ServoId id) override;
@@ -100,6 +106,9 @@ namespace servo_backends {
         };
 
         /// 发送指令帧并（按命令语义）接收应答帧。
+        /// @param id
+        /// @param instruction
+        /// @param params
         /// @param ack_required PING/READ 必须有应答；写类命令超时视为已执行
         ///        （应答开关 reg8=0 时写命令本就无 ACK）。
         /// @param extra_ids 额外可接受的应答 ID（改 ID 时回新 ID）。

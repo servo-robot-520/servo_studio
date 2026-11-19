@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <utility>
 
@@ -80,7 +81,7 @@ namespace servo_backends {
     } // namespace
 
     UbtechDriver::~UbtechDriver() {
-        close();
+        UbtechDriver::close();
     }
 
     void UbtechDriver::set_trace_hook(TraceHook hook) {
@@ -145,6 +146,17 @@ namespace servo_backends {
         return Result::success();
     }
 
+    TelemetryChannels UbtechDriver::telemetry_channels(const ServoId) const {
+        // 无连续遥测（角度回读有失电副作用，仅手动单次读取）。
+        return TelemetryChannels::none();
+    }
+
+    DriverCapabilities UbtechDriver::capabilities() const {
+        return {.torque_damping = false,
+                .polling_safe = false,
+                .uses_protocol_panel = true};
+    }
+
     const ServoConfig& UbtechDriver::config_for(const ServoId id) const {
         static const ServoConfig kDefault{};
         if (const auto it = configs_.find(id); it != configs_.end()) {
@@ -169,7 +181,7 @@ namespace servo_backends {
         return frame_copy;
     }
 
-    Result UbtechDriver::send_frame(const Frame& frame) {
+    Result UbtechDriver::send_frame(const Frame& frame) const {
         if (fd_ < 0) {
             return Result::failure("Serial port is not open");
         }
@@ -179,7 +191,7 @@ namespace servo_backends {
             const ssize_t n = ::write(fd_, frame.data() + written, frame.size() - written);
             if (n < 0) {
                 if (errno == EAGAIN || errno == EINTR) {
-                    pollfd pfd{fd_, POLLOUT, 0};
+                    pollfd pfd{.fd = fd_, .events = POLLOUT, .revents = 0};
                     if (::poll(&pfd, 1, timeout_ms_) <= 0) {
                         return Result::failure("Serial write timed out");
                     }
@@ -206,7 +218,7 @@ namespace servo_backends {
     }
 
     Expected<UbtechDriver::Frame> UbtechDriver::receive_frame(const uint8_t header1,
-                                                             const uint8_t header2) {
+                                                             const uint8_t header2) const {
         // 缓冲区解析：跳过噪声字节，找到帧头后凑满 10 字节，校验帧尾与校验和。
         std::vector<uint8_t> buffer;
         const auto deadline =
@@ -238,21 +250,19 @@ namespace servo_backends {
             // 读取更多字节（按剩余时间等待）。
             const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
                 deadline - std::chrono::steady_clock::now());
-            pollfd pfd{fd_, POLLIN, 0};
-            const int wait_ms = static_cast<int>(std::max<int64_t>(1, remaining.count()));
-            if (::poll(&pfd, 1, wait_ms) <= 0) {
+            pollfd pfd{.fd = fd_, .events = POLLIN, .revents = 0};
+            if (const int wait_ms = static_cast<int>(std::max<int64_t>(1, remaining.count())); ::poll(&pfd, 1, wait_ms) <= 0) {
                 continue;
             }
             uint8_t chunk[64];
-            const ssize_t n = ::read(fd_, chunk, sizeof(chunk));
-            if (n > 0) {
+            if (const ssize_t n = ::read(fd_, chunk, sizeof(chunk)); n > 0) {
                 buffer.insert(buffer.end(), chunk, chunk + n);
             }
         }
         return Expected<Frame>::failure("Timed out waiting for response frame");
     }
 
-    Result UbtechDriver::receive_short_ack() {
+    Result UbtechDriver::receive_short_ack() const {
         // 短回应：0xAA [+舵机ID]。协议规定失败/错误不回应，超时即失败。
         std::vector<uint8_t> buffer;
         const auto deadline =
@@ -260,14 +270,12 @@ namespace servo_backends {
         while (buffer.empty() && std::chrono::steady_clock::now() < deadline) {
             const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
                 deadline - std::chrono::steady_clock::now());
-            pollfd pfd{fd_, POLLIN, 0};
-            const int wait_ms = static_cast<int>(std::max<int64_t>(1, remaining.count()));
-            if (::poll(&pfd, 1, wait_ms) <= 0) {
+            pollfd pfd{.fd = fd_, .events = POLLIN, .revents = 0};
+            if (const int wait_ms = static_cast<int>(std::max<int64_t>(1, remaining.count())); ::poll(&pfd, 1, wait_ms) <= 0) {
                 continue;
             }
             uint8_t chunk[8];
-            const ssize_t n = ::read(fd_, chunk, sizeof(chunk));
-            if (n > 0) {
+            if (const ssize_t n = ::read(fd_, chunk, sizeof(chunk)); n > 0) {
                 buffer.insert(buffer.end(), chunk, chunk + n);
             }
         }
@@ -283,11 +291,10 @@ namespace servo_backends {
         // 兼容 0xAA 与 0xAA+ID 两种形态：把随后即到的 ID 字节收掉，
         // 避免污染下一条回应（0xAA+ID 两字节间隔远小于超时）。
         if (buffer.size() == 1) {
-            pollfd pfd{fd_, POLLIN, 0};
+            pollfd pfd{.fd = fd_, .events = POLLIN, .revents = 0};
             if (::poll(&pfd, 1, 2) > 0) {
                 uint8_t extra[8];
-                const ssize_t n = ::read(fd_, extra, sizeof(extra));
-                if (n > 0) {
+                if (const ssize_t n = ::read(fd_, extra, sizeof(extra)); n > 0) {
                     trace("rx", extra, static_cast<size_t>(n));
                 }
             }
@@ -296,7 +303,7 @@ namespace servo_backends {
     }
 
     Result UbtechDriver::cmd_move(const ServoId id, const uint8_t angle_deg,
-                                  const uint8_t move_units, const uint16_t lock_units) {
+                                  const uint8_t move_units, const uint16_t lock_units) const {
         const Frame frame = build_frame(kHeader1, kHeader2, id, kCmdMove, angle_deg, move_units,
                                         static_cast<uint8_t>(lock_units >> 8),
                                         static_cast<uint8_t>(lock_units & 0xFF));
@@ -306,7 +313,7 @@ namespace servo_backends {
         return receive_short_ack();
     }
 
-    Result UbtechDriver::cmd_stop(const ServoId id) {
+    Result UbtechDriver::cmd_stop(const ServoId id) const {
         // 强制中止：0x01 + FF 00 00 00；立即停转并失电（仅靠齿轮阻尼维持位置）。
         const Frame frame = build_frame(kHeader1, kHeader2, id, kCmdMove, kStopMarker, 0, 0, 0);
         if (const auto result = send_frame(frame); !result) {
@@ -315,7 +322,7 @@ namespace servo_backends {
         return receive_short_ack();
     }
 
-    Expected<std::pair<int, int>> UbtechDriver::cmd_read_angle(const ServoId id) {
+    Expected<std::pair<int, int>> UbtechDriver::cmd_read_angle(const ServoId id) const {
         const Frame frame = build_frame(kHeader1, kHeader2, id, kCmdReadAngle, 0, 0, 0, 0);
         if (const auto result = send_frame(frame); !result) {
             return Expected<std::pair<int, int>>::failure(result.error());
@@ -330,7 +337,7 @@ namespace servo_backends {
         return Expected<std::pair<int, int>>(std::make_pair(target, actual));
     }
 
-    Result UbtechDriver::cmd_set_id(const ServoId id, const ServoId new_id) {
+    Result UbtechDriver::cmd_set_id(const ServoId id, const ServoId new_id) const {
         const Frame frame = build_frame(kHeader1, kHeader2, id, kCmdSetId, 0, new_id, 0, 0);
         if (const auto result = send_frame(frame); !result) {
             return result;
@@ -345,7 +352,7 @@ namespace servo_backends {
         return Result::success();
     }
 
-    Result UbtechDriver::cmd_set_offset(const ServoId id, const int offset) {
+    Result UbtechDriver::cmd_set_offset(const ServoId id, const int offset) const {
         const auto raw = static_cast<uint16_t>(static_cast<int16_t>(offset));
         const Frame frame = build_frame(kHeader1, kHeader2, id, kCmdSetOffset, 0, 0,
                                         static_cast<uint8_t>(raw >> 8),
@@ -363,7 +370,7 @@ namespace servo_backends {
         return Result::success();
     }
 
-    Expected<int> UbtechDriver::cmd_read_offset(const ServoId id) {
+    Expected<int> UbtechDriver::cmd_read_offset(const ServoId id) const {
         const Frame frame = build_frame(kHeader1, kHeader2, id, kCmdReadOffset, 0, 0, 0, 0);
         if (const auto result = send_frame(frame); !result) {
             return Expected<int>::failure(result.error());
@@ -377,7 +384,7 @@ namespace servo_backends {
         return Expected<int>(static_cast<int>(static_cast<int16_t>(raw)));
     }
 
-    Expected<std::array<uint8_t, 4>> UbtechDriver::cmd_read_version(const ServoId id) {
+    Expected<std::array<uint8_t, 4>> UbtechDriver::cmd_read_version(const ServoId id) const {
         const Frame frame = build_frame(kFwHeader1, kFwHeader2, id, kCmdReadVersion, 0, 0, 0, 0);
         if (const auto result = send_frame(frame); !result) {
             return Expected<std::array<uint8_t, 4>>::failure(result.error());
@@ -410,6 +417,7 @@ namespace servo_backends {
             info.firmware_major = version.value()[0];
             info.firmware_minor = version.value()[1];
             info.max_range_deg = kMaxAngleDeg;
+            info.channels = TelemetryChannels::none();
             infos.push_back(info);
         }
         return Expected<std::vector<ServoInfo>>(infos);
@@ -427,6 +435,7 @@ namespace servo_backends {
         info.firmware_major = version.value()[0];
         info.firmware_minor = version.value()[1];
         info.max_range_deg = kMaxAngleDeg;
+        info.channels = TelemetryChannels::none();
         return Expected<ServoInfo>(info);
     }
 
@@ -438,9 +447,16 @@ namespace servo_backends {
         }
         ServoState state;
         state.id = id;
-        // tick 即度（协议绝对角 0..240）。
+        // tick 即度（协议绝对角 0..240）；仅单次回读有意义，其余通道无遥测。
         state.position_ticks = angles.value().second;
         state.position_deg = angles.value().second;
+        constexpr double nan = std::numeric_limits<double>::quiet_NaN();
+        state.velocity_ticks_s = nan;
+        state.velocity_deg_s = nan;
+        state.load = nan;
+        state.voltage = nan;
+        state.temperature = nan;
+        state.current = nan;
         state.moving = angles.value().first != angles.value().second;
         return Expected<ServoState>(state);
     }
@@ -456,10 +472,10 @@ namespace servo_backends {
                                      kMaxAngleDeg);
         const int angle = std::clamp(position_ticks, lower, upper);
         const int move_units =
-            std::clamp(static_cast<int>(std::lround(time_ms / double(kTimeQuantumMs))), 0,
+            std::clamp(static_cast<int>(std::lround(time_ms / static_cast<double>(kTimeQuantumMs))), 0,
                        kMaxMoveUnits);
         const int lock_units =
-            std::clamp(static_cast<int>(std::lround(lock_ms / double(kTimeQuantumMs))), 0,
+            std::clamp(static_cast<int>(std::lround(lock_ms / static_cast<double>(kTimeQuantumMs))), 0,
                        kMaxLockUnits);
         return cmd_move(id, static_cast<uint8_t>(angle), static_cast<uint8_t>(move_units),
                         static_cast<uint16_t>(lock_units));
@@ -574,15 +590,17 @@ namespace servo_backends {
             return cmd_read_offset(id);
         }
         if (key.rfind("firmware_v", 0) == 0) {
+            // 版本号下标解析（strtol 报告转换失败；先校验再发总线请求）。
+            char* end = nullptr;
+            const long parsed = std::strtol(key.c_str() + 10, &end, 10);
+            if (end == key.c_str() + 10 || parsed < 1 || parsed > 4) {
+                return Expected<int>::failure("Unknown parameter '" + key + "'");
+            }
             const auto version = cmd_read_version(id);
             if (!version) {
                 return Expected<int>::failure(version.error());
             }
-            const int index = std::atoi(key.c_str() + 10) - 1;
-            if (index < 0 || index > 3) {
-                return Expected<int>::failure("Unknown parameter '" + key + "'");
-            }
-            return Expected<int>(version.value()[static_cast<size_t>(index)]);
+            return Expected<int>(version.value()[static_cast<size_t>(parsed - 1)]);
         }
         return Expected<int>::failure("Unknown parameter '" + key + "'");
     }

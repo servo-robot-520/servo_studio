@@ -54,7 +54,7 @@ add_library(servo_backend_ubtech OBJECT
 target_include_directories(servo_backend_ubtech PUBLIC src/backends/ubtech/include)
 target_link_libraries(servo_backend_ubtech PUBLIC servo_core)
 
-# UBTECH-LQ 后端（UBTECH舵机的飞特协议实现固件，作者 liqiulong123）：SCS 兼容协议，
+# UBTECH-LQL 后端（UBTECH舵机的飞特协议实现固件，作者 liqiulong123）：SCS 兼容协议，
 # 传输层复用 feetech_scs_core 的串口，（宽容状态字节/新 ID 应答）。
 add_library(servo_backend_ubtech_liqiulong123 OBJECT
         src/backends/ubtech_liqiulong123/src/ubtech_liqiulong123_driver.cpp)

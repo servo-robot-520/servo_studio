@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <memory>
 #include <string>
 #include <vector>
@@ -124,6 +125,21 @@ namespace {
         EXPECT_NE(result.error().find("torque"), std::string::npos);
     }
 
+    TEST_F(UbtechDriverTest, CapabilitiesDeclareNoTelemetryAndProtocolPanel) {
+        open_driver({plain_servo(1)});
+        const auto channels = driver_->telemetry_channels(1);
+        EXPECT_FALSE(channels.position);
+        EXPECT_FALSE(channels.velocity);
+        EXPECT_FALSE(channels.load);
+        EXPECT_FALSE(channels.voltage);
+        EXPECT_FALSE(channels.temperature);
+        EXPECT_FALSE(channels.current);
+        const auto caps = driver_->capabilities();
+        EXPECT_FALSE(caps.torque_damping);
+        EXPECT_FALSE(caps.polling_safe);
+        EXPECT_TRUE(caps.uses_protocol_panel);
+    }
+
     TEST_F(UbtechDriverTest, ReadAngleFillsStateAndMovingFlag) {
         auto servo = plain_servo(1);
         servo.target_angle = 200;
@@ -134,6 +150,12 @@ namespace {
         EXPECT_EQ(state.value().position_ticks, 190);
         EXPECT_EQ(state.value().position_deg, 190);
         EXPECT_TRUE(state.value().moving);
+        // 其余通道无遥测，填 NaN（UI 显示 "--"）。
+        EXPECT_TRUE(std::isnan(state.value().velocity_deg_s));
+        EXPECT_TRUE(std::isnan(state.value().load));
+        EXPECT_TRUE(std::isnan(state.value().voltage));
+        EXPECT_TRUE(std::isnan(state.value().temperature));
+        EXPECT_TRUE(std::isnan(state.value().current));
     }
 
     TEST_F(UbtechDriverTest, ReadAngleSettledClearsMovingFlag) {

@@ -11,6 +11,7 @@
 namespace servo_backends {
 
     using servo_core::BusConfig;
+    using servo_core::DriverCapabilities;
     using servo_core::Expected;
     using servo_core::IServoDriver;
     using servo_core::ParamDescriptor;
@@ -19,6 +20,7 @@ namespace servo_backends {
     using servo_core::ServoId;
     using servo_core::ServoInfo;
     using servo_core::ServoState;
+    using servo_core::TelemetryChannels;
 
     /// @brief UBTECH（优必选拆机关节舵机）后端：非官方协议适配到 IServoDriver。
     ///
@@ -47,6 +49,10 @@ namespace servo_backends {
         [[nodiscard]] bool is_open() const override;
 
         Result set_servo_config(const ServoConfig& config) override;
+
+        /// 无连续遥测通道（角度回读有失电副作用，仅手动单次读取）。
+        [[nodiscard]] TelemetryChannels telemetry_channels(ServoId id) const override;
+        [[nodiscard]] DriverCapabilities capabilities() const override;
 
         Expected<std::vector<ServoInfo>> scan(int first_id, int last_id) override;
         Expected<ServoInfo> identify(ServoId id) override;
@@ -85,27 +91,27 @@ namespace servo_backends {
                                                uint8_t command, uint8_t p1h, uint8_t p1l,
                                                uint8_t p2h, uint8_t p2l);
 
-        Result send_frame(const Frame& frame);
+        Result send_frame(const Frame& frame) const;
         /// 读取完整回应帧（跳过噪声，校验帧头/帧尾/校验和）。
-        Expected<Frame> receive_frame(uint8_t header1, uint8_t header2);
+        Expected<Frame> receive_frame(uint8_t header1, uint8_t header2) const;
         /// 读取短回应（0xAA [+ID]）；超时无回应即失败（协议规定失败不回应）。
-        Result receive_short_ack();
+        Result receive_short_ack() const;
         void trace(const char* direction, const uint8_t* data, size_t size) const;
 
         /// 命令封装：0x01 转动（angle 度、move/lock 为 20ms 量化值）。
-        Result cmd_move(ServoId id, uint8_t angle_deg, uint8_t move_units, uint16_t lock_units);
+        Result cmd_move(ServoId id, uint8_t angle_deg, uint8_t move_units, uint16_t lock_units) const;
         /// 0x01 FF 强制中止（停转并失电）。
-        Result cmd_stop(ServoId id);
+        Result cmd_stop(ServoId id) const;
         /// 0x02 角度回读：目标角 + 实际角（度）。副作用：舵机失电。
-        Expected<std::pair<int, int>> cmd_read_angle(ServoId id);
+        Expected<std::pair<int, int>> cmd_read_angle(ServoId id) const;
         /// 0xCD 修改 ID（立即生效）；回应字节 5 为修改前 ID。
-        Result cmd_set_id(ServoId id, ServoId new_id);
+        Result cmd_set_id(ServoId id, ServoId new_id) const;
         /// 0xD2 设置角度偏移（1/3 度，±90；掉电清零）。
-        Result cmd_set_offset(ServoId id, int offset);
+        Result cmd_set_offset(ServoId id, int offset) const;
         /// 0xD4 读取角度偏移。
-        Expected<int> cmd_read_offset(ServoId id);
+        Expected<int> cmd_read_offset(ServoId id) const;
         /// FC CF 0x01 读取固件版本（4 个语义未知的版本字节）。
-        Expected<std::array<uint8_t, 4>> cmd_read_version(ServoId id);
+        Expected<std::array<uint8_t, 4>> cmd_read_version(ServoId id) const;
 
         [[nodiscard]] const ServoConfig& config_for(ServoId id) const;
 

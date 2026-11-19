@@ -64,7 +64,7 @@ namespace {
 
         const auto& samd10 = infos.value()[0];
         EXPECT_EQ(samd10.id, 1);
-        EXPECT_EQ(samd10.model, "UBTECH-LQ SAMD10");
+        EXPECT_EQ(samd10.model, "UBTECH-LQL SAMD10");
         EXPECT_EQ(samd10.firmware_major, 1);
         EXPECT_EQ(samd10.firmware_minor, 11);
         EXPECT_EQ(samd10.max_range_deg, 360.0);
@@ -74,11 +74,33 @@ namespace {
         EXPECT_EQ(samd10.defaults.max_ticks, 3800.0);
 
         const auto& mega8 = infos.value()[1];
-        EXPECT_EQ(mega8.model, "UBTECH-LQ Mega8");
+        EXPECT_EQ(mega8.model, "UBTECH-LQL Mega8");
         EXPECT_EQ(mega8.firmware_major, 2);
         EXPECT_EQ(mega8.firmware_minor, 3);
         EXPECT_EQ(mega8.defaults.min_ticks, 24.0);
         EXPECT_EQ(mega8.defaults.max_ticks, 4080.0);
+        // 遥测能力随身份下发：samd10 全通道，mega8 无电压/温度/电流。
+        EXPECT_TRUE(samd10.channels.position);
+        EXPECT_TRUE(samd10.channels.voltage);
+        EXPECT_TRUE(mega8.channels.position);
+        EXPECT_TRUE(mega8.channels.load);
+        EXPECT_FALSE(mega8.channels.voltage);
+        EXPECT_FALSE(mega8.channels.temperature);
+        EXPECT_FALSE(mega8.channels.current);
+    }
+
+    TEST_F(LqDriverTest, CapabilitiesPerVariant) {
+        open_driver({samd10_servo(1), mega8_servo(2)});
+        ASSERT_TRUE(driver_->identify(1));
+        ASSERT_TRUE(driver_->identify(2));
+        // mega8 通道按变体收窄。
+        EXPECT_TRUE(driver_->telemetry_channels(1).voltage);
+        EXPECT_FALSE(driver_->telemetry_channels(2).voltage);
+        // 总线能力：无阻尼档、可轮询、使用通用检查器。
+        const auto caps = driver_->capabilities();
+        EXPECT_FALSE(caps.torque_damping);
+        EXPECT_TRUE(caps.polling_safe);
+        EXPECT_FALSE(caps.uses_protocol_panel);
     }
 
     TEST_F(LqDriverTest, ScanSkipsAbsentIds) {

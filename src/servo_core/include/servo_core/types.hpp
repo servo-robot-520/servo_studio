@@ -63,6 +63,42 @@ namespace servo_core {
         return static_cast<int>(std::clamp(ticks, lower, upper));
     }
 
+    /// @brief 遥测通道支持集（监控状态表/折线图的数据列）。
+    ///
+    /// 不支持的通道 read_state 填 NaN，界面显示 "--"（图表断点）；
+    /// 由 IServoDriver::telemetry_channels() 按舵机查询，扫描结果随
+    /// ServoInfo 下发给界面作掩码依据。
+    struct TelemetryChannels {
+        bool position{true};
+        bool velocity{true};
+        bool load{true};
+        bool voltage{true};
+        bool temperature{true};
+        bool current{true};
+
+        /// 无任何遥测通道（如 UBTECH 拆机协议）。
+        static TelemetryChannels none() {
+            return {.position = false,
+                    .velocity = false,
+                    .load = false,
+                    .voltage = false,
+                    .temperature = false,
+                    .current = false};
+        }
+    };
+
+    /// @brief 驱动能力（总线级）：界面按数据决定显示与行为，不做协议名分支。
+    struct DriverCapabilities {
+        /// 扭矩是否支持阻尼档（0/1/2；不支持则界面收成两态）。
+        bool torque_damping{true};
+        /// read_state 可否用于自动轮询（无副作用）；
+        /// false 时界面禁用轮询，仅允许手动单次读取。
+        bool polling_safe{true};
+        /// 是否使用协议专属操作面板（如 UBTECH 的角度/运动/锁定时间面板）
+        /// 而非通用检查器。
+        bool uses_protocol_panel{false};
+    };
+
     /// @brief 舵机身份信息。
     struct ServoInfo {
         /// 舵机 id。
@@ -80,6 +116,8 @@ namespace servo_core {
         /// 默认换算/钳位配置（型号几何：ticks↔度、命令钳位），
         /// 扫描后由界面播种每舵机配置；full_scale_ticks ≤ 0 表示未提供。
         ServoConfig defaults{};
+        /// 支持的遥测通道（界面掩码依据）。
+        TelemetryChannels channels{};
     };
 
     /// @brief 实时状态；物理量用常用单位，位置/速度同时给出原始计数。
