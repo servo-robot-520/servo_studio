@@ -64,7 +64,11 @@ ctest --test-dir build --output-on-failure
 ## 运行
 
 ```bash
+# 开发构建
 ./build/servo_studio
+
+# Release 构建
+./build-release/servo_studio
 ```
 
 典型流程：顶部选择串口 → 连接 → 扫描 → 在设备树或状态表中选中舵机
