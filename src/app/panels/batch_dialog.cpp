@@ -29,10 +29,12 @@ namespace app {
     BatchDialog::BatchDialog(QWidget* parent) :
         QDialog(parent) {
         setWindowTitle(tr("批量操作"));
-        resize(880, 560);
+        resize(720, 560);
 
         auto* layout = new QVBoxLayout(this);
         layout->setSpacing(8);
+        // 弹窗默认宽度 = 表格宽度：水平边距归零，按钮行自带内边距。
+        layout->setContentsMargins(0, 0, 0, 6);
 
         auto* bar = new QHBoxLayout;
         refresh_button_ = new QPushButton(tr("刷新"), this);
@@ -43,6 +45,7 @@ namespace app {
         stage_button_->setToolTip(tr("逐台 REG_WRITE 预存（有应答可确认），舵机不动作"));
         trigger_button_ = new QPushButton(tr("触发"), this);
         trigger_button_->setToolTip(tr("ACTION 触发所有已预存目标生效（未预存的不动）"));
+        bar->setContentsMargins(8, 8, 8, 2);
         bar->addWidget(refresh_button_);
         bar->addWidget(sync_button_);
         bar->addWidget(stage_button_);
@@ -70,7 +73,8 @@ namespace app {
         header->resizeSection(kColumnSpeed, 90);
         header->setSectionResizeMode(kColumnTime, QHeaderView::Fixed);
         header->resizeSection(kColumnTime, 90);
-        header->setSectionResizeMode(kColumnInclude, QHeaderView::ResizeToContents);
+        header->setSectionResizeMode(kColumnInclude, QHeaderView::Fixed);
+        header->resizeSection(kColumnInclude, 64);
         table_->setMinimumHeight(320);
         layout->addWidget(table_, 1);
 
@@ -151,6 +155,16 @@ namespace app {
             table_->setCellWidget(row, kColumnInclude, holder);
         }
         updateTriggerLabel();
+        resizeToTable();
+    }
+
+    void BatchDialog::resizeToTable() {
+        // 弹窗默认宽度 = 表格宽度：内容列自适应后按各列总宽收紧窗口。
+        for (const int column : {kColumnPort, kColumnId, kColumnDeg}) {
+            table_->resizeColumnToContents(column);
+        }
+        const int table_width = table_->horizontalHeader()->length() + table_->frameWidth() * 2;
+        resize(table_width, height());
     }
 
     void BatchDialog::updateRowDisplay(const int row) {

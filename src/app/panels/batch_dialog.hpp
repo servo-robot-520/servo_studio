@@ -77,6 +77,7 @@ namespace app {
 
         [[nodiscard]] QVector<BatchGoal> collectGoals() const;
         void rebuildRows(const QVector<BatchServo>& servos);
+        void resizeToTable();
         void beginEdit(int row, int column);
         void commitEditor();
         void updateRowDisplay(int row);
