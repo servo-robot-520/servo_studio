@@ -48,11 +48,19 @@ add_library(servo_backend_feetech_scs OBJECT
 target_include_directories(servo_backend_feetech_scs PUBLIC src/backends/feetech_scs/include)
 target_link_libraries(servo_backend_feetech_scs PUBLIC servo_core feetech_scs_core)
 
-# UBTECH 后端：非官方协议（帧层自研，无外部协议库依赖）。
+# UBTECH 后端：非官方协议（无外部协议库依赖）。
 add_library(servo_backend_ubtech OBJECT
         src/backends/ubtech/src/ubtech_driver.cpp)
 target_include_directories(servo_backend_ubtech PUBLIC src/backends/ubtech/include)
 target_link_libraries(servo_backend_ubtech PUBLIC servo_core)
+
+# UBTECH-LQ 后端（UBTECH舵机的飞特协议实现固件，作者 liqiulong123）：SCS 兼容协议，
+# 传输层复用 feetech_scs_core 的串口，（宽容状态字节/新 ID 应答）。
+add_library(servo_backend_ubtech_liqiulong123 OBJECT
+        src/backends/ubtech_liqiulong123/src/ubtech_liqiulong123_driver.cpp)
+target_include_directories(servo_backend_ubtech_liqiulong123 PUBLIC
+        src/backends/ubtech_liqiulong123/include)
+target_link_libraries(servo_backend_ubtech_liqiulong123 PUBLIC servo_core feetech_scs_core)
 
 # 无 GUI 冒烟工具。
 add_executable(servo_smoke tools/servo_smoke.cpp)
@@ -83,7 +91,14 @@ add_executable(servo_studio
 target_include_directories(servo_studio PRIVATE src)
 # 应用版本取自 CMakeLists 的 PROJECT_VERSION，窗口标题显示。
 target_compile_definitions(servo_studio PRIVATE SERVO_STUDIO_VERSION="${PROJECT_VERSION}")
-target_link_libraries(servo_studio PRIVATE servo_backend_feetech_scs servo_backend_ubtech servo_core feetech_scs_core Qt6::Widgets Qt6::Charts)
+target_link_libraries(servo_studio PRIVATE
+        servo_backend_feetech_scs
+        servo_backend_ubtech
+        servo_backend_ubtech_liqiulong123
+        servo_core feetech_scs_core
+        Qt6::Widgets
+        Qt6::Charts
+)
 
 install(TARGETS servo_studio RUNTIME DESTINATION bin)
 
@@ -100,6 +115,11 @@ if (BUILD_TESTING)
     target_include_directories(test_ubtech_driver PRIVATE test)
     target_link_libraries(test_ubtech_driver PRIVATE servo_backend_ubtech servo_core GTest::gtest_main)
     add_test(NAME test_ubtech_driver COMMAND test_ubtech_driver)
+
+    add_executable(test_ubtech_liqiulong123_driver test/test_ubtech_liqiulong123_driver.cpp)
+    target_include_directories(test_ubtech_liqiulong123_driver PRIVATE test)
+    target_link_libraries(test_ubtech_liqiulong123_driver PRIVATE servo_backend_ubtech_liqiulong123 servo_core feetech_scs_core GTest::gtest_main)
+    add_test(NAME test_ubtech_liqiulong123_driver COMMAND test_ubtech_liqiulong123_driver)
 
     add_executable(test_bus_session test/test_bus_session.cpp)
     target_link_libraries(test_bus_session PRIVATE servo_core GTest::gtest_main)

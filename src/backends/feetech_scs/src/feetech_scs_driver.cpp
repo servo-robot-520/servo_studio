@@ -129,6 +129,13 @@ namespace servo_backends {
         info.firmware_major = identity.firmware_major;
         info.firmware_minor = identity.firmware_minor;
         info.max_range_deg = kMaxRangeDeg;
+        // 默认换算几何：SCS 电位器版（1024/中位 511），供界面播种每舵机配置。
+        info.defaults.id = id;
+        info.defaults.range_deg = kMaxRangeDeg;
+        info.defaults.min_ticks = 0;
+        info.defaults.max_ticks = scs::kPositionTicks - 1;
+        info.defaults.center_ticks = scs::kPositionMidpoint;
+        info.defaults.full_scale_ticks = scs::kPositionTicks;
         return info;
     }
 

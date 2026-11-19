@@ -77,6 +77,9 @@ namespace servo_core {
         uint8_t firmware_minor{};
         /// 型号允许的最大机械行程（度）。
         double max_range_deg{360.0};
+        /// 默认换算/钳位配置（型号几何：ticks↔度、命令钳位），
+        /// 扫描后由界面播种每舵机配置；full_scale_ticks ≤ 0 表示未提供。
+        ServoConfig defaults{};
     };
 
     /// @brief 实时状态；物理量用常用单位，位置/速度同时给出原始计数。
