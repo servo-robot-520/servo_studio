@@ -1,6 +1,6 @@
 #include "app/panels/inspector_panel.hpp"
 
-#include <QCheckBox>
+#include <QComboBox>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -64,15 +64,32 @@ namespace app {
                                   "电机模式下该寄存器为 PWM 占空比"));
         form->addRow(tr("运行时间(ms)"), time_spin_);
 
-        torque_check_ = new QCheckBox(tr("扭矩输出"), command_group);
-        torque_check_->setToolTip(tr("扭矩开关（寄存器 40）：勾选=通电锁轴保持位置；\n"
-                                     "取消=断开力矩，输出轴自由。阻尼模式（写 2）见寄存器工作台"));
-        connect(torque_check_, &QCheckBox::toggled, this, [this](const bool enabled) {
+        // 加速度设置：随目标下发（寄存器 41，SMS/STS 系列才有）。
+        // 当前 SCS 系列无此寄存器，先接入命令通道但不显示。
+        acc_spin_ = new QSpinBox(command_group);
+        acc_spin_->setRange(0, 254);
+        acc_spin_->setToolTip(tr("加速度（寄存器 41，SMS/STS 系列）；SCS 系列忽略"));
+        auto* acc_row = new QWidget(command_group);
+        auto* acc_layout = new QHBoxLayout(acc_row);
+        acc_layout->setContentsMargins(0, 0, 0, 0);
+        acc_layout->addWidget(new QLabel(tr("加速度"), acc_row));
+        acc_layout->addWidget(acc_spin_);
+        acc_layout->addStretch(1);
+        form->addRow(acc_row);
+        acc_row->setVisible(false); // SCS 系列暂不显示
+
+        torque_combo_ = new QComboBox(command_group);
+        torque_combo_->addItem(tr("自由"), 0);
+        torque_combo_->addItem(tr("锁紧"), 1);
+        torque_combo_->addItem(tr("阻尼"), 2);
+        torque_combo_->setToolTip(tr("扭矩设置（寄存器 40）：锁紧=通电保持位置；\n"
+                                     "自由=断开力矩；阻尼=输出阻尼（需固件支持）"));
+        connect(torque_combo_, &QComboBox::currentIndexChanged, this, [this](const int index) {
             if (hasSubject()) {
-                emit torqueRequested(subject_port_, subject_id_, enabled);
+                emit torqueRequested(subject_port_, subject_id_, torque_combo_->itemData(index).toInt());
             }
         });
-        form->addRow(torque_check_);
+        form->addRow(tr("扭矩设置"), torque_combo_);
 
         // 动作按钮逐行排布，窄面板下不拥挤。
         goal_button_ = new QPushButton(tr("下发目标"), command_group);
@@ -138,14 +155,16 @@ namespace app {
         connect(ticks_slider_, &QSlider::sliderReleased, this, [this] {
             if (hasSubject()) {
                 emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
-                                   speed_spin_->value(), GoalTarget::kCurrent);
+                                   speed_spin_->value(), acc_spin_->value(),
+                                   GoalTarget::kCurrent);
             }
         });
         // 目标位置回车直接下发（仅回车触发，失焦不触发）。
         connect(ticks_spin_->findChild<QLineEdit*>(), &QLineEdit::returnPressed, this, [this] {
             if (hasSubject()) {
                 emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
-                                   speed_spin_->value(), GoalTarget::kCurrent);
+                                   speed_spin_->value(), acc_spin_->value(),
+                                   GoalTarget::kCurrent);
             }
         });
         // 回中：目标设为编码器中位并直接下发。
@@ -155,25 +174,27 @@ namespace app {
             }
             ticks_spin_->setValue(static_cast<int>(subject_config_.center_ticks));
             emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
-                               speed_spin_->value(), GoalTarget::kCurrent);
+                               speed_spin_->value(), acc_spin_->value(), GoalTarget::kCurrent);
         });
 
         connect(goal_button_, &QPushButton::clicked, this, [this] {
             if (hasSubject()) {
                 emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
-                                   speed_spin_->value(), GoalTarget::kCurrent);
+                                   speed_spin_->value(), acc_spin_->value(),
+                                   GoalTarget::kCurrent);
             }
         });
         connect(goal_all_button_, &QPushButton::clicked, this, [this] {
             if (hasSubject()) {
                 emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
-                                   speed_spin_->value(), GoalTarget::kSelection);
+                                   speed_spin_->value(), acc_spin_->value(),
+                                   GoalTarget::kSelection);
             }
         });
         connect(goal_protocol_button_, &QPushButton::clicked, this, [this] {
             if (hasSubject()) {
                 emit goalRequested(subject_port_, ticks_spin_->value(), time_spin_->value(),
-                                   speed_spin_->value(), GoalTarget::kAll);
+                                   speed_spin_->value(), acc_spin_->value(), GoalTarget::kAll);
             }
         });
         auto jog = [this](const double delta_deg) {

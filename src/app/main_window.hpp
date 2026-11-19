@@ -42,9 +42,9 @@ namespace app {
         void setPollRate(int hz);
         void onServoSelected();
 
-        void handleGoal(const QString& port, int ticks, int timeMs, int speed,
+        void handleGoal(const QString& port, int ticks, int timeMs, int speed, int acc,
                         GoalTarget target);
-        void handleTorque(const QString& port, servo_core::ServoId id, bool enabled);
+        void handleTorque(const QString& port, servo_core::ServoId id, int mode);
         void handleParamWrite(const QString& port, servo_core::ServoId id, const QString& key,
                               int value, const QString& valueText);
         void handleParamWriteAll(const QString& port, const QString& key, int value);

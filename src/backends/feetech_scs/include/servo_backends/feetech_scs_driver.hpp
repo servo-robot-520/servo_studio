@@ -39,10 +39,11 @@ namespace servo_backends {
         Expected<ServoInfo> identify(ServoId id) override;
         Expected<ServoState> read_state(ServoId id) override;
 
-        Result write_goal(ServoId id, int position_ticks, int time_ms, int speed_ticks_s) override;
+        Result write_goal(ServoId id, int position_ticks, int time_ms, int speed_ticks_s,
+                          int acc) override;
         Result sync_write_goals(const std::vector<ServoId>& ids,
                                 const std::vector<int>& positions_ticks, int time_ms,
-                                const std::vector<int>& speeds_ticks_s) override;
+                                const std::vector<int>& speeds_ticks_s, int acc) override;
 
         Result set_torque(ServoId id, bool enabled) override;
 

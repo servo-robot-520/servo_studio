@@ -335,7 +335,7 @@ namespace app {
     }
 
     void MainWindow::handleGoal(const QString& port, const int ticks, const int timeMs,
-                                const int speed, const GoalTarget target) {
+                                const int speed, const int acc, const GoalTarget target) {
         // 目标集合按总线分组：单机 / 状态表选中（可跨总线）/ 当前协议全部。
         std::map<QString, std::vector<servo_core::ServoId>> targets;
         if (target == GoalTarget::kCurrent) {
@@ -379,16 +379,17 @@ namespace app {
             total += static_cast<int>(ids.size());
             if (ids.size() == 1) {
                 const auto id = ids.front();
-                it->second.bridge->submit([id, ticks, timeMs, speed](servo_core::IServoDriver& driver) {
-                    return driver.write_goal(id, ticks, timeMs, speed);
-                });
+                it->second.bridge->submit(
+                    [id, ticks, timeMs, speed, acc](servo_core::IServoDriver& driver) {
+                        return driver.write_goal(id, ticks, timeMs, speed, acc);
+                    });
             }
             else {
                 const std::vector<int> positions(ids.size(), ticks);
                 const std::vector<int> speeds(ids.size(), speed);
                 it->second.bridge->submit(
-                    [ids, positions, timeMs, speeds](servo_core::IServoDriver& driver) {
-                        return driver.sync_write_goals(ids, positions, timeMs, speeds);
+                    [ids, positions, timeMs, speeds, acc](servo_core::IServoDriver& driver) {
+                        return driver.sync_write_goals(ids, positions, timeMs, speeds, acc);
                     });
             }
         }
@@ -396,16 +397,18 @@ namespace app {
     }
 
     void MainWindow::handleTorque(const QString& port, const servo_core::ServoId id,
-                                  const bool enabled) {
+                                  const int mode) {
         const auto it = buses_.find(port);
         if (it == buses_.end()) {
             return;
         }
-        it->second.bridge->submit([id, enabled](servo_core::IServoDriver& driver) {
-            return driver.set_torque(id, enabled);
+        // 扭矩设置：0 自由 / 1 锁紧 / 2 阻尼（寄存器 40）。
+        it->second.bridge->submit([id, mode](servo_core::IServoDriver& driver) {
+            return driver.write_param(id, "torque_enable", mode);
         });
-        log("info", QStringLiteral("Torque %1 on servo %2")
-                        .arg(enabled ? "enabled" : "disabled")
+        static const char* kModes[] = {"free", "locked", "damping"};
+        log("info", QStringLiteral("Torque set to %1 on servo %2")
+                        .arg(mode >= 0 && mode <= 2 ? kModes[mode] : "?")
                         .arg(id));
     }
 

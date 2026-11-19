@@ -4,7 +4,7 @@
 
 #include "servo_core/types.hpp"
 
-class QCheckBox;
+class QComboBox;
 class QDoubleSpinBox;
 class QLabel;
 class QPushButton;
@@ -41,11 +41,12 @@ namespace app {
         void clear();
 
     signals:
-        /// 下发目标位置（tick），范围由 GoalTarget 决定。
-        void goalRequested(const QString& port, int ticks, int timeMs, int speed,
+        /// 下发目标位置（tick），范围由 GoalTarget 决定；acc 仅对带加速度
+        /// 寄存器的系列生效。
+        void goalRequested(const QString& port, int ticks, int timeMs, int speed, int acc,
                            GoalTarget target);
-        /// 扭矩开关。
-        void torqueRequested(const QString& port, servo_core::ServoId id, bool enabled);
+        /// 扭矩设置：0 自由 / 1 锁紧 / 2 阻尼（寄存器 40）。
+        void torqueRequested(const QString& port, servo_core::ServoId id, int mode);
         /// 应用换算配置（机械行程/命令钳位）。
         void servoConfigRequested(const QString& port, servo_core::ServoId id, double rangeDeg,
                                   double minTicks, double maxTicks);
@@ -69,7 +70,8 @@ namespace app {
         QSlider* ticks_slider_;
         QSpinBox* speed_spin_;
         QSpinBox* time_spin_;
-        QCheckBox* torque_check_;
+        QSpinBox* acc_spin_;
+        QComboBox* torque_combo_;
         QDoubleSpinBox* range_spin_;
         QSpinBox* min_ticks_spin_;
         QSpinBox* max_ticks_spin_;

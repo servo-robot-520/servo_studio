@@ -193,7 +193,9 @@ namespace servo_backends {
     }
 
     Result FeetechScsDriver::write_goal(const ServoId id, const int position_ticks, const int time_ms,
-                                     const int speed_ticks_s) {
+                                        const int speed_ticks_s, const int acc) {
+        // SCS 电位器系列无加速度寄存器（速度规划由运行时间/速度承担），acc 忽略。
+        (void)acc;
         if (!protocol_) {
             return Result::failure("Serial port is not open");
         }
@@ -205,9 +207,12 @@ namespace servo_backends {
     }
 
     Result FeetechScsDriver::sync_write_goals(const std::vector<ServoId>& ids,
-                                           const std::vector<int>& positions_ticks,
-                                           const int time_ms,
-                                           const std::vector<int>& speeds_ticks_s) {
+                                              const std::vector<int>& positions_ticks,
+                                              const int time_ms,
+                                              const std::vector<int>& speeds_ticks_s,
+                                              const int acc) {
+        // SCS 系列无加速度寄存器，acc 忽略（STS 后端将随位置帧写入 ACC 寄存器）。
+        (void)acc;
         if (!protocol_) {
             return Result::failure("Serial port is not open");
         }
