@@ -85,7 +85,7 @@ namespace app {
                                         "未选中时作用于当前舵机"));
         goal_protocol_button_->setToolTip(tr("同步下发到当前协议的全部舵机\n"
                                              "（所有已连接的同协议串口总线，一条串口仅支持一种协议）"));
-        home_button_->setToolTip(tr("目标设为编码器中位（511）并下发"));
+        home_button_->setToolTip(tr("目标设为编码器中位并下发"));
         form->addRow(goal_button_);
         form->addRow(goal_all_button_);
         form->addRow(goal_protocol_button_);
@@ -93,8 +93,7 @@ namespace app {
 
         range_spin_ = new QDoubleSpinBox(command_group);
         range_spin_->setRange(0.1, 360.0);
-        range_spin_->setToolTip(tr("机械行程（度）：编码器全量程对应的角度，用于 tick↔度换算；\n"
-                                   "SCS 系列上限 300"));
+        range_spin_->setToolTip(tr("机械行程（度）：编码器全量程对应的角度，用于 tick↔度换算"));
         range_spin_->setDecimals(1);
         range_spin_->setValue(300.0);
         form->addRow(tr("行程(°)"), range_spin_);
@@ -211,6 +210,12 @@ namespace app {
         range_spin_->setValue(config.range_deg);
         min_ticks_spin_->setValue(static_cast<int>(config.min_ticks));
         max_ticks_spin_->setValue(static_cast<int>(config.max_ticks));
+        // 中位与行程上限随舵机编码器几何而异（SCS 511/300°、STS 2048/…），提示动态计算。
+        home_button_->setToolTip(
+            tr("目标设为编码器中位（%1）并下发").arg(static_cast<int>(config.center_ticks)));
+        range_spin_->setToolTip(
+            tr("机械行程（度）：编码器全量程对应的角度，用于 tick↔度换算；\n上限 %1")
+                .arg(max_range_deg_));
         onGoalValueChanged();
     }
 
