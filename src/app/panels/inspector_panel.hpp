@@ -10,6 +10,7 @@ class QLabel;
 class QPushButton;
 class QSlider;
 class QSpinBox;
+class QTimer;
 
 namespace app {
 
@@ -58,6 +59,12 @@ namespace app {
 
     private:
         [[nodiscard]] bool hasSubject() const;
+        /// 启动自动动作（sweep=往复，否则步进）；互斥，运行中先停。
+        void startAutoMotion(bool sweep);
+        /// 停止自动动作并恢复按钮。
+        void stopAutoMotion();
+        /// 自动动作与手动目标控件互斥：运行期间禁用手动目标控件。
+        void setManualGoalControlsEnabled(bool enabled);
 
         QString subject_port_;
         servo_core::ServoId subject_id_{};
@@ -83,6 +90,19 @@ namespace app {
         QPushButton* jog_plus_button_;
         QPushButton* home_button_;
         QPushButton* register_button_;
+
+        // 自动调试：往复/步进自动动作发生器（辅助人工整定）。
+        QSpinBox* auto_start_spin_;
+        QSpinBox* auto_end_spin_;
+        QSpinBox* auto_step_spin_;
+        QSpinBox* auto_interval_spin_;
+        QPushButton* sweep_button_;
+        QPushButton* setp_button_;
+        QTimer* auto_timer_;
+        bool sweep_running_{false};
+        bool setp_running_{false};
+        bool auto_increase_{true};
+        int auto_goal_{0};
     };
 
 } // namespace app

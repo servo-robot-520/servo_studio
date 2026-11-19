@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
     servo_backends::FeetechScsDriver::register_driver();
 
     app::MainWindow window;
-    window.show();
+    window.showMaximized(); // 程序启动默认最大化
 
     return app.exec();
 }
