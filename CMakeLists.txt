@@ -9,7 +9,7 @@ if (NOT CMAKE_CXX_COMPILER AND NOT DEFINED ENV{CXX})
     endif ()
 endif ()
 
-project(servo_studio VERSION 0.1.0 LANGUAGES CXX)
+project(servo_studio VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -48,6 +48,12 @@ add_library(servo_backend_feetech_scs OBJECT
 target_include_directories(servo_backend_feetech_scs PUBLIC src/backends/feetech_scs/include)
 target_link_libraries(servo_backend_feetech_scs PUBLIC servo_core feetech_scs_core)
 
+# UBTECH 后端：非官方协议（帧层自研，无外部协议库依赖）。
+add_library(servo_backend_ubtech OBJECT
+        src/backends/ubtech/src/ubtech_driver.cpp)
+target_include_directories(servo_backend_ubtech PUBLIC src/backends/ubtech/include)
+target_link_libraries(servo_backend_ubtech PUBLIC servo_core)
+
 # 无 GUI 冒烟工具。
 add_executable(servo_smoke tools/servo_smoke.cpp)
 target_link_libraries(servo_smoke PRIVATE servo_backend_feetech_scs servo_core feetech_scs_core)
@@ -71,12 +77,13 @@ add_executable(servo_studio
         src/app/panels/inspector_panel.cpp
         src/app/panels/batch_dialog.cpp
         src/app/panels/params_dialog.cpp
+        src/app/panels/ubtech_panel.cpp
         src/app/panels/log_panel.cpp
         src/app/resources/app.qrc)
 target_include_directories(servo_studio PRIVATE src)
 # 应用版本取自 CMakeLists 的 PROJECT_VERSION，窗口标题显示。
 target_compile_definitions(servo_studio PRIVATE SERVO_STUDIO_VERSION="${PROJECT_VERSION}")
-target_link_libraries(servo_studio PRIVATE servo_backend_feetech_scs servo_core feetech_scs_core Qt6::Widgets Qt6::Charts)
+target_link_libraries(servo_studio PRIVATE servo_backend_feetech_scs servo_backend_ubtech servo_core feetech_scs_core Qt6::Widgets Qt6::Charts)
 
 install(TARGETS servo_studio RUNTIME DESTINATION bin)
 
@@ -88,6 +95,11 @@ if (BUILD_TESTING)
     target_include_directories(test_feetech_scs_driver PRIVATE test)
     target_link_libraries(test_feetech_scs_driver PRIVATE servo_backend_feetech_scs servo_core feetech_scs_core GTest::gtest_main)
     add_test(NAME test_feetech_scs_driver COMMAND test_feetech_scs_driver)
+
+    add_executable(test_ubtech_driver test/test_ubtech_driver.cpp)
+    target_include_directories(test_ubtech_driver PRIVATE test)
+    target_link_libraries(test_ubtech_driver PRIVATE servo_backend_ubtech servo_core GTest::gtest_main)
+    add_test(NAME test_ubtech_driver COMMAND test_ubtech_driver)
 
     add_executable(test_bus_session test/test_bus_session.cpp)
     target_link_libraries(test_bus_session PRIVATE servo_core GTest::gtest_main)

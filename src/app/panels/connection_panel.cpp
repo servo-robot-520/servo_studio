@@ -32,6 +32,8 @@ namespace app {
         for (const auto& name : servo_core::DriverRegistry::instance().names()) {
             backend_combo_->addItem(QString::fromStdString(name));
         }
+        connect(backend_combo_, &QComboBox::currentTextChanged, this,
+                [this](const QString& name) { emit backendChanged(name); });
         row->addWidget(backend_combo_);
 
         row->addWidget(new QLabel(tr("串口"), top_bar_));

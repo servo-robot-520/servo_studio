@@ -7,6 +7,7 @@
 #include "app/session_bridge.hpp"
 #include "app/wheel_focus_filter.hpp"
 #include "servo_backends/feetech_scs_driver.hpp"
+#include "servo_backends/ubtech_driver.hpp"
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
@@ -32,6 +33,7 @@ int main(int argc, char** argv) {
 
     // 驱动注册：中间层通过注册表创建后端。
     servo_backends::FeetechScsDriver::register_driver();
+    servo_backends::UbtechDriver::register_driver();
 
     app::MainWindow window;
     window.showMaximized(); // 程序启动默认最大化

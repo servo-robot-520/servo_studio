@@ -57,7 +57,7 @@ namespace servo_core {
                 return Expected<ServoState>(state);
             }
 
-            Result write_goal(ServoId, int, int, int, int) override {
+            Result write_goal(ServoId, int, int, int, int, int) override {
                 record_call();
                 return Result::success();
             }

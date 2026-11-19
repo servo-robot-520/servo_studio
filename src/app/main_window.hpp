@@ -16,6 +16,7 @@ namespace app {
     class StatusTable;
     class ChartPanel;
     class InspectorPanel;
+    class UbtechPanel;
     class LogPanel;
     class ParamsDialog;
     class BatchDialog;
@@ -47,6 +48,12 @@ namespace app {
         void handleGoal(const QString& port, int ticks, int timeMs, int speed, int acc,
                         GoalTarget target);
         void handleTorque(const QString& port, servo_core::ServoId id, int mode);
+        void handleUbtechMove(const QString& port, servo_core::ServoId id, int angleDeg,
+                              int moveMs, int lockMs);
+        void handleUbtechStop(const QString& port, servo_core::ServoId id);
+        void handleUbtechReadAngle(const QString& port, servo_core::ServoId id);
+        void onBackendChanged(const QString& backend);
+        void openParamsDialog();
         void handleParamWrite(const QString& port, servo_core::ServoId id, const QString& key,
                               int value, const QString& valueText);
         void handleParamWriteAll(const QString& port, const QString& key, int value);
@@ -70,6 +77,9 @@ namespace app {
 
         void log(const QString& level, const QString& message) const;
         void applyPolling(const QString& port);
+        /// 操作面板按协议二选一显示（UBTECH 专用面板 / 飞特检查器），
+        /// UBTECH 无遥测，监控列随之隐藏。
+        void applyProtocolPanel(bool is_ubtech);
         void refreshBatchDialog();
         [[nodiscard]] servo_core::ServoConfig configFor(const QString& port,
                                                         servo_core::ServoId id) const;
@@ -78,7 +88,11 @@ namespace app {
         DeviceTree* device_tree_;
         StatusTable* status_table_;
         ChartPanel* chart_panel_;
+        /// 监控列（曲线 + 状态表）；UBTECH 无遥测，选中其舵机时隐藏。
+        QWidget* monitor_;
         InspectorPanel* inspector_panel_;
+        /// UBTECH 专用操作面板（与检查器同列，按协议二选一显示）。
+        UbtechPanel* ubtech_panel_;
         LogPanel* log_panel_;
         ParamsDialog* params_dialog_;
         BatchDialog* batch_dialog_;

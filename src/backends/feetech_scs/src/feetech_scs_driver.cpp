@@ -192,9 +192,12 @@ namespace servo_backends {
     }
 
     Result FeetechScsDriver::write_goal(const ServoId id, const int position_ticks, const int time_ms,
-                                        const int speed_ticks_s, const int acc) {
-        // SCS 电位器系列无加速度寄存器（速度规划由运行时间/速度承担），acc 忽略。
+                                        const int speed_ticks_s, const int acc,
+                                        const int lock_ms) {
+        // SCS 电位器系列无加速度寄存器（速度规划由运行时间/速度承担），acc 忽略；
+        // 锁定时间为 UBTECH 专属，忽略。
         (void)acc;
+        (void)lock_ms;
         if (!protocol_) {
             return Result::failure("Serial port is not open");
         }

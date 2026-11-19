@@ -120,13 +120,38 @@ namespace app {
             });
     }
 
+    void SessionBridge::readServoState(const QString& port, const servo_core::ServoId id) {
+        if (!session_) {
+            return;
+        }
+        auto state = std::make_shared<servo_core::ServoState>();
+        submit(
+            [id, state](servo_core::IServoDriver& driver) {
+                const auto result = driver.read_state(id);
+                if (!result) {
+                    return servo_core::Result::failure(result.error());
+                }
+                *state = result.value();
+                return servo_core::Result::success();
+            },
+            [this, port, state](const bool success, const QString& error) {
+                if (success) {
+                    emit statesReceived(port, QVector<servo_core::ServoState>{*state});
+                }
+                else {
+                    // 错误经 commandFinished 统一上报，此处仅避免误报成功。
+                    (void)error;
+                }
+            });
+    }
+
     void SessionBridge::queryStagedSupport(const QString& port) {
         if (!session_) {
             return;
         }
         auto supported = std::make_shared<bool>(false);
         submit(
-            [supported](servo_core::IServoDriver& driver) {
+            [supported](const servo_core::IServoDriver& driver) {
                 *supported = driver.supports_staged_write();
                 return servo_core::Result::success();
             },

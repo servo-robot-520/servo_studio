@@ -20,6 +20,7 @@
 #include "app/panels/log_panel.hpp"
 #include "app/panels/params_dialog.hpp"
 #include "app/panels/status_table.hpp"
+#include "app/panels/ubtech_panel.hpp"
 #include "servo_core/registry.hpp"
 
 namespace app {
@@ -54,27 +55,36 @@ namespace app {
 
         // 中：监控（曲线/状态表）在上，日志在监控下方。
         auto* monitor_col = new QSplitter(Qt::Vertical, main_split);
-        auto* monitor = new QSplitter(Qt::Vertical, monitor_col);
-        chart_panel_ = new ChartPanel(monitor);
-        status_table_ = new StatusTable(monitor);
-        monitor->addWidget(chart_panel_);
-        monitor->addWidget(status_table_);
-        monitor->setStretchFactor(0, 2);
-        monitor->setStretchFactor(1, 1);
+        auto* monitor_split = new QSplitter(Qt::Vertical, monitor_col);
+        monitor_ = monitor_split;
+        chart_panel_ = new ChartPanel(monitor_split);
+        status_table_ = new StatusTable(monitor_split);
+        monitor_split->addWidget(chart_panel_);
+        monitor_split->addWidget(status_table_);
+        monitor_split->setStretchFactor(0, 2);
+        monitor_split->setStretchFactor(1, 1);
         log_panel_ = new LogPanel(monitor_col);
         log_panel_->setMinimumHeight(140);
-        monitor_col->addWidget(monitor);
+        monitor_col->addWidget(monitor_split);
         monitor_col->addWidget(log_panel_);
         monitor_col->setStretchFactor(0, 1);
         monitor_col->setStretchFactor(1, 0);
         monitor_col->setSizes({760, 220});
 
-        // 右：操作（舵机操作 / 自动调试 / 编程）全高，最大化时全部可见。
-        inspector_panel_ = new InspectorPanel(main_split);
+        // 右：操作面板按协议二选一（飞特检查器 / UBTECH 专用面板），全高。
+        auto* right = new QWidget(main_split);
+        auto* right_layout = new QVBoxLayout(right);
+        right_layout->setContentsMargins(0, 0, 0, 0);
+        right_layout->setSpacing(0);
+        inspector_panel_ = new InspectorPanel(right);
+        ubtech_panel_ = new UbtechPanel(right);
+        ubtech_panel_->hide();
+        right_layout->addWidget(inspector_panel_, 1);
+        right_layout->addWidget(ubtech_panel_, 1);
 
         main_split->addWidget(left);
         main_split->addWidget(monitor_col);
-        main_split->addWidget(inspector_panel_);
+        main_split->addWidget(right);
         main_split->setStretchFactor(0, 0);
         main_split->setStretchFactor(1, 1);
         main_split->setStretchFactor(2, 0);
@@ -90,6 +100,8 @@ namespace app {
         setFocus();
 
         connect(connection_panel_, &ConnectionPanel::connectRequested, this, &MainWindow::connectBus);
+        connect(connection_panel_, &ConnectionPanel::backendChanged, this,
+                &MainWindow::onBackendChanged);
         connect(connection_panel_, &ConnectionPanel::disconnectRequested, this,
                 &MainWindow::disconnectBus);
         connect(connection_panel_, &ConnectionPanel::scanRequested, this, &MainWindow::scanBus);
@@ -104,6 +116,20 @@ namespace app {
         connect(inspector_panel_, &InspectorPanel::torqueRequested, this, &MainWindow::handleTorque);
         connect(inspector_panel_, &InspectorPanel::servoConfigRequested, this,
                 &MainWindow::handleServoConfig);
+
+        // UBTECH 专用面板：转动/中止/单次回读 + 参数写入走通用确认流程。
+        connect(ubtech_panel_, &UbtechPanel::moveRequested, this, &MainWindow::handleUbtechMove);
+        connect(ubtech_panel_, &UbtechPanel::stopRequested, this, &MainWindow::handleUbtechStop);
+        connect(ubtech_panel_, &UbtechPanel::readAngleRequested, this,
+                &MainWindow::handleUbtechReadAngle);
+        connect(ubtech_panel_, &UbtechPanel::paramWriteRequested, this,
+                &MainWindow::handleParamWrite);
+        connect(ubtech_panel_, &UbtechPanel::paramReloadRequested, this,
+                [this](const QString& port, const servo_core::ServoId id) {
+                    if (const auto it = buses_.find(port); it != buses_.end()) {
+                        it->second.bridge->readParameters(port, id);
+                    }
+                });
 
         // 批量操作弹窗（非模态）：多舵机目标编排。
         batch_dialog_ = new BatchDialog(this);
@@ -126,18 +152,10 @@ namespace app {
 
         // 寄存器工作台（非模态弹窗）：全量寄存器读写。
         params_dialog_ = new ParamsDialog(this);
-        connect(inspector_panel_, &InspectorPanel::registerRequested, this, [this] {
-            if (!has_subject_) {
-                log("warn", "No target servo selected");
-                return;
-            }
-            params_dialog_->setSubject(subject_port_, subject_id_);
-            params_dialog_->show();
-            params_dialog_->raise();
-            if (const auto it = buses_.find(subject_port_); it != buses_.end()) {
-                it->second.bridge->readParameters(subject_port_, subject_id_);
-            }
-        });
+        connect(inspector_panel_, &InspectorPanel::registerRequested, this,
+                &MainWindow::openParamsDialog);
+        connect(ubtech_panel_, &UbtechPanel::registerRequested, this,
+                &MainWindow::openParamsDialog);
         connect(params_dialog_, &ParamsDialog::paramWriteRequested, this,
                 &MainWindow::handleParamWrite);
         connect(params_dialog_, &ParamsDialog::paramWriteAllRequested, this,
@@ -223,6 +241,9 @@ namespace app {
                 [this](const QString& bus_port, const QVector<servo_core::ServoState>& states) {
                     status_table_->updateStates(bus_port, states);
                     chart_panel_->appendStates(bus_port, states);
+                    for (const auto& state : states) {
+                        ubtech_panel_->updateState(bus_port, state);
+                    }
                 });
         connect(bridge, &SessionBridge::scanFinished, this,
                 [this](const QString& bus_port, const QVector<servo_core::ServoInfo>& infos) {
@@ -244,6 +265,7 @@ namespace app {
                 [this](const QString& bus_port, const int id,
                        const QVector<ParamValue>& values) {
                     params_dialog_->setParameters(bus_port, id, values);
+                    ubtech_panel_->setParameters(bus_port, id, values);
                     log("info", "Parameters loaded for servo " + QString::number(id));
                 });
         connect(bridge, &SessionBridge::commandFinished, this,
@@ -346,9 +368,33 @@ namespace app {
         if (it == buses_.end()) {
             return;
         }
+        // UBTECH 角度回读有失电副作用：该协议总线禁止任何轮询，
+        // 只允许操作面板手动单次读取。
+        if (it->second.driver_name == QStringLiteral("ubtech")) {
+            it->second.bridge->setPolling({}, 0);
+            return;
+        }
         const auto ids = device_tree_->servoIds(port);
         const std::vector<servo_core::ServoId> std_ids(ids.begin(), ids.end());
         it->second.bridge->setPolling(std_ids, poll_hz_);
+    }
+
+    void MainWindow::applyProtocolPanel(const bool is_ubtech) {
+        monitor_->setVisible(!is_ubtech);
+        if (is_ubtech) {
+            inspector_panel_->hide();
+            ubtech_panel_->show();
+        }
+        else {
+            ubtech_panel_->hide();
+            inspector_panel_->show();
+        }
+    }
+
+    void MainWindow::onBackendChanged(const QString& backend) {
+        // 连接前即时预览协议界面（协议下拉一变就切面板）；连接期间下拉锁定，
+        // 选中舵机后仍以其所属总线协议为准（onServoSelected 重新应用）。
+        applyProtocolPanel(backend == QStringLiteral("ubtech"));
     }
 
     void MainWindow::onServoSelected() {
@@ -385,7 +431,19 @@ namespace app {
                 break;
             }
         }
-        inspector_panel_->setSubject(port, id, configFor(port, id), max_range_deg);
+        // 操作面板按协议二选一：UBTECH 功能面与飞特差异大，使用专用面板；
+        // 遥测监控（曲线/状态表）对 UBTECH 隐藏（无遥测且禁轮询）。
+        const bool is_ubtech =
+            buses_.contains(port) && buses_[port].driver_name == QStringLiteral("ubtech");
+        applyProtocolPanel(is_ubtech);
+        if (is_ubtech) {
+            inspector_panel_->clear();
+            ubtech_panel_->setSubject(port, id);
+        }
+        else {
+            ubtech_panel_->clear();
+            inspector_panel_->setSubject(port, id, configFor(port, id), max_range_deg);
+        }
         chart_panel_->setSubject(port, id, model);
         // 寄存器弹窗跟随当前选中对象。
         params_dialog_->setSubject(port, id);
@@ -444,7 +502,7 @@ namespace app {
                 const auto id = ids.front();
                 it->second.bridge->submit(
                     [id, ticks, timeMs, speed, acc](servo_core::IServoDriver& driver) {
-                        return driver.write_goal(id, ticks, timeMs, speed, acc);
+                        return driver.write_goal(id, ticks, timeMs, speed, acc, 0);
                     });
             }
             else {
@@ -474,6 +532,58 @@ namespace app {
         log("info", QStringLiteral("Torque set to %1 on servo %2")
                         .arg(mode >= 0 && mode <= 2 ? kModes[mode] : "?")
                         .arg(id));
+    }
+
+    void MainWindow::handleUbtechMove(const QString& port, const servo_core::ServoId id,
+                                      const int angleDeg, const int moveMs, const int lockMs) {
+        const auto it = buses_.find(port);
+        if (it == buses_.end()) {
+            return;
+        }
+        // UBTECH tick 即度；speed/acc 无协议对应，锁定时间走 lock_ms。
+        it->second.bridge->submit(
+            [id, angleDeg, moveMs, lockMs](servo_core::IServoDriver& driver) {
+                return driver.write_goal(id, angleDeg, moveMs, 0, 0, lockMs);
+            });
+        statusBar()->showMessage(tr("已下发目标 → %1°（运动 %2ms，锁定 %3ms）")
+                                     .arg(angleDeg)
+                                     .arg(moveMs)
+                                     .arg(lockMs),
+                                 4000);
+    }
+
+    void MainWindow::handleUbtechStop(const QString& port, const servo_core::ServoId id) {
+        const auto it = buses_.find(port);
+        if (it == buses_.end()) {
+            return;
+        }
+        // 强制中止 = 失电（协议 0x01 FF）：映射为松扭矩。
+        it->second.bridge->submit([id](servo_core::IServoDriver& driver) {
+            return driver.set_torque(id, false);
+        });
+        log("info", QStringLiteral("Servo %1 stopped (de-energized)").arg(id));
+    }
+
+    void MainWindow::handleUbtechReadAngle(const QString& port, const servo_core::ServoId id) {
+        const auto it = buses_.find(port);
+        if (it == buses_.end()) {
+            return;
+        }
+        // 单次读取（协议副作用：回读后舵机失电），结果经 statesReceived 显示。
+        it->second.bridge->readServoState(port, id);
+    }
+
+    void MainWindow::openParamsDialog() {
+        if (!has_subject_) {
+            log("warn", "No target servo selected");
+            return;
+        }
+        params_dialog_->setSubject(subject_port_, subject_id_);
+        params_dialog_->show();
+        params_dialog_->raise();
+        if (const auto it = buses_.find(subject_port_); it != buses_.end()) {
+            it->second.bridge->readParameters(subject_port_, subject_id_);
+        }
     }
 
     void MainWindow::handleParamWrite(const QString& port, const servo_core::ServoId id,
@@ -646,7 +756,7 @@ namespace app {
             }
             it->second.bridge->submit(
                 [ids, positions, times, speeds](servo_core::IServoDriver& driver) {
-                    return driver.sync_write_goals(ids, positions, times, speeds);
+                    return driver.sync_write_goals(ids, positions, times, speeds, 0);
                 });
         }
         log("info", QStringLiteral("Batch sync dispatched %1 goal(s) on %2 bus(es)")
@@ -674,7 +784,8 @@ namespace app {
                 [bus_goals](servo_core::IServoDriver& driver) {
                     for (const auto& goal : bus_goals) {
                         if (const auto result =
-                                driver.stage_goal(goal.id, goal.ticks, goal.timeMs, goal.speed);
+                                driver.stage_goal(goal.id, goal.ticks, goal.timeMs, goal.speed,
+                                                  0);
                             !result) {
                             return result;
                         }

@@ -53,8 +53,11 @@ namespace servo_core {
 
         /// @brief 写目标位置（原始计数，按配置钳位）、运行时间、速度与加速度。
         ///        acc 仅对带加速度寄存器的系列有意义（SMS/STS）；SCS 系列忽略。
+        ///        lock_ms 仅 UBTECH 有意义：锁定时间，锁定期内舵机忽略新目标；
+        ///        其余系列忽略。虚拟函数不设默认实参（按静态类型解析易误用），
+        ///        无意义的参数由调用方显式传 0。
         virtual Result write_goal(ServoId id, int position_ticks, int time_ms,
-                                  int speed_ticks_s, int acc) = 0;
+                                  int speed_ticks_s, int acc, int lock_ms) = 0;
 
         /// @brief 多舵机同步下发目标位置（SYNC WRITE 类操作）。
         ///        acc 语义同 write_goal。
@@ -62,7 +65,7 @@ namespace servo_core {
                                         const std::vector<int>& positions_ticks,
                                         const std::vector<int>& times_ms,
                                         const std::vector<int>& speeds_ticks_s,
-                                        int acc = 0) = 0;
+                                        int acc) = 0;
 
         /// @brief 是否支持预存式下发（异步写：预存 → 触发）。
         [[nodiscard]] virtual bool supports_staged_write() const {
@@ -70,8 +73,8 @@ namespace servo_core {
         }
 
         /// @brief 预存目标位置（舵机不动作），待 trigger_staged() 触发生效。
-        virtual Result stage_goal(ServoId id, int position_ticks, int time_ms,
-                                  int speed_ticks_s, int acc = 0) {
+        virtual Result stage_goal(const ServoId id, const int position_ticks, const int time_ms,
+                                  const int speed_ticks_s, const int acc) {
             (void)id;
             (void)position_ticks;
             (void)time_ms;

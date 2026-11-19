@@ -35,6 +35,8 @@ namespace app {
         /// 请求连接总线（协议后端 + 串口）。
         void connectRequested(const QString& backend, const QString& port, int baudRate,
                               int timeoutMs);
+        /// 协议后端变化（用于界面按协议能力即时切换）。
+        void backendChanged(const QString& backend);
         /// 请求断开当前表单中的总线。
         void disconnectRequested(const QString& port);
         /// 请求扫描当前表单中的总线。

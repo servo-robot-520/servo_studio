@@ -40,16 +40,16 @@ namespace servo_backends {
         Expected<ServoState> read_state(ServoId id) override;
 
         Result write_goal(ServoId id, int position_ticks, int time_ms, int speed_ticks_s,
-                          int acc = 0) override;
+                          int acc, int lock_ms) override;
         Result sync_write_goals(const std::vector<ServoId>& ids,
                                 const std::vector<int>& positions_ticks,
                                 const std::vector<int>& times_ms,
                                 const std::vector<int>& speeds_ticks_s,
-                                int acc = 0) override;
+                                int acc) override;
 
         [[nodiscard]] bool supports_staged_write() const override;
         Result stage_goal(ServoId id, int position_ticks, int time_ms, int speed_ticks_s,
-                          int acc = 0) override;
+                          int acc) override;
         Result trigger_staged() override;
 
         Result set_torque(ServoId id, bool enabled) override;

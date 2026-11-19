@@ -182,7 +182,7 @@ int main(int argc, char** argv) {
     // 目标下发。
     if (options.goal_ticks >= 0) {
         if (const auto result = driver.write_goal(id, options.goal_ticks, options.goal_time_ms,
-                                                  options.goal_speed);
+                                                  options.goal_speed, 0, 0);
             !result) {
             std::fprintf(stderr, "error: write_goal failed: %s\n", result.error().c_str());
             return 1;

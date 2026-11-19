@@ -1,8 +1,8 @@
 # servo_studio
 
-飞特 SCS 系列总线舵机（SC215/SC225）的 Linux 桌面上位机：一次连接多条串口总线、每条总线多个舵机，实时监控、运动控制、全参数读写与备份。
+飞特 SCS 系列（SC215/SC225）与 UBTECH（优必选拆机关节舵机，非官方协议）总线舵机的 Linux 桌面上位机：一次连接多条串口总线、每条总线多个舵机，实时监控、运动控制、全参数读写与备份。
 
-暗色扁平界面；UI 与采集后端解耦（Qt 界面只面向 `servo_core` 中立类型与`SessionBridge` 信号），通过 `servo_core` 中间层预留对其他厂商舵机（如磁编码器版本）的支持。
+暗色扁平界面；UI 与采集后端解耦（Qt 界面只面向 `servo_core` 中立类型与`SessionBridge` 信号），通过 `servo_core` 中间层支持多厂商舵机后端（飞特 SCS / UBTECH，同一界面按协议能力切换操作面板）。
 
 ![servo_studio 主界面](docs/main_window.png)
 
@@ -18,6 +18,7 @@
 - **参数备份**：整表备份为 JSON / 从备份恢复（恢复自动跳过 ID 与波特率）
 - **日志**：事件日志 + 帧级 hex 收发跟踪，级别过滤、导出；除 trace 外各级最近 20 条保底缓存（trace 帧优先淘汰），切换级别仍可见历史日志
 - **安全**：全局"全部松扭矩"急停、危险写入二次确认、命令钳位
+- **UBTECH 协议（非官方文档）**：按协议能力针对性出组件——转动（角度 0–240° / 运动时间 / 锁定时间）、强制中止（失电）、角度回读（⚠回读后失电，仅手动单次、禁止轮询）、角度偏移校准（⅓°，掉电清零）、修改 ID、固件版本；无速度/扭矩/遥测，对应面板与曲线/状态表自动隐藏
 
 ## 构建
 
@@ -45,7 +46,7 @@ cmake --build build-release -j
 ctest --test-dir build --output-on-failure
 ```
 
-覆盖飞特后端（FakeScsBus 总线级）、BusSession 并发行为与参数备份格式。
+覆盖飞特后端（FakeScsBus 总线级）、UBTECH 后端（FakeUbtechBus 帧级：编码/钳位/短回应/坏校验和/静默超时）、BusSession 并发行为与参数备份格式。
 
 ## 运行
 
@@ -64,6 +65,7 @@ ctest --test-dir build --output-on-failure
 ```
 src/servo_core/       中间层：IServoDriver、中立类型、DriverRegistry、BusSession
 src/backends/feetech_scs/  飞特 SCS 后端（适配 feetech_scs_ros2_control）
+src/backends/ubtech/  UBTECH 后端（非官方协议，帧层自研，无外部依赖）
 src/app/              Qt6 GUI：主窗口、各面板、主题、参数备份
 tools/servo_smoke.cpp 无 GUI 冒烟命令行工具
 test/                 gtest 单元/集成测试

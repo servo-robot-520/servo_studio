@@ -76,6 +76,10 @@ namespace app {
         /// @brief 读取全部参数，结果经 parametersReceived 信号返回。
         void readParameters(const QString& port, servo_core::ServoId id);
 
+        /// @brief 单次状态读取（结果经 statesReceived 信号返回）。
+        ///        UBTECH 等无轮询协议专用：读角度有失电副作用，只能手动单次触发。
+        void readServoState(const QString& port, servo_core::ServoId id);
+
         /// @brief 备份整表参数到 JSON 文件（工作线程读取并写文件）。
         void backupParameters(const QString& port, servo_core::ServoId id, const QString& path);
 

@@ -94,11 +94,11 @@ namespace servo_backends {
             config.max_ticks = 900;
             ASSERT_TRUE(driver.set_servo_config(config));
 
-            ASSERT_TRUE(driver.write_goal(1, 50, 0, 1000));
+            ASSERT_TRUE(driver.write_goal(1, 50, 0, 1000, 0, 0));
             EXPECT_EQ(bus.present_position(1), 100);
-            ASSERT_TRUE(driver.write_goal(1, 950, 0, 1000));
+            ASSERT_TRUE(driver.write_goal(1, 950, 0, 1000, 0, 0));
             EXPECT_EQ(bus.present_position(1), 900);
-            ASSERT_TRUE(driver.write_goal(1, 512, 0, 1000));
+            ASSERT_TRUE(driver.write_goal(1, 512, 0, 1000, 0, 0));
             EXPECT_EQ(bus.present_position(1), 512);
         }
 
@@ -107,14 +107,14 @@ namespace servo_backends {
             FeetechScsDriver driver;
             ASSERT_TRUE(driver.open(bus_config(bus.slave_path())));
 
-            ASSERT_TRUE(driver.sync_write_goals({1, 2}, {200, 300}, {0, 0}, {500, 600}));
+            ASSERT_TRUE(driver.sync_write_goals({1, 2}, {200, 300}, {0, 0}, {500, 600}, 0));
             // SYNC WRITE 无应答，等待模拟总线消费该帧。
             ASSERT_TRUE(feetech_scs_ros2_control::test::wait_for([&] {
                 return bus.present_position(1) == 200 && bus.present_position(2) == 300;
             }));
 
             // id/位置/时间/速度数量不匹配必须被拒绝。
-            EXPECT_FALSE(driver.sync_write_goals({1, 2}, {200}, {0, 0}, {500, 600}));
+            EXPECT_FALSE(driver.sync_write_goals({1, 2}, {200}, {0, 0}, {500, 600}, 0));
         }
 
         TEST(FeetechScsDriverTest, WriteParamUsesEepromSafeFlow) {
@@ -139,8 +139,8 @@ namespace servo_backends {
             ASSERT_TRUE(driver.open(bus_config(bus.slave_path())));
             ASSERT_TRUE(driver.supports_staged_write());
 
-            ASSERT_TRUE(driver.stage_goal(1, 600, 0, 500));
-            ASSERT_TRUE(driver.stage_goal(2, 700, 0, 500));
+            ASSERT_TRUE(driver.stage_goal(1, 600, 0, 500, 0));
+            ASSERT_TRUE(driver.stage_goal(2, 700, 0, 500, 0));
             // 预存阶段不动作。
             EXPECT_EQ(bus.present_position(1), 511);
             EXPECT_EQ(bus.present_position(2), 511);
