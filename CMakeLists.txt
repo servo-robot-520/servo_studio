@@ -20,14 +20,14 @@ if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif ()
 
 # 飞特驱动源码路径：-DFEETECH_DRIVER_DIR=<path> 指定；未配置时从上一级目录寻找。
-set(FEETECH_DRIVER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../feetech_servo_ros2_control"
-        CACHE PATH "feetech_servo_ros2_control 源码路径")
-if (NOT EXISTS "${FEETECH_DRIVER_DIR}/include/feetech_servo_ros2_control/scs_protocol.hpp")
+set(FEETECH_DRIVER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../feetech_scs_ros2_control"
+        CACHE PATH "feetech_scs_ros2_control 源码路径")
+if (NOT EXISTS "${FEETECH_DRIVER_DIR}/include/feetech_scs_ros2_control/scs_protocol.hpp")
     message(FATAL_ERROR
-            "feetech_servo_ros2_control not found at '${FEETECH_DRIVER_DIR}'. "
-            "Pass -DFEETECH_DRIVER_DIR=<path-to-feetech_servo_ros2_control>.")
+            "feetech_scs_ros2_control not found at '${FEETECH_DRIVER_DIR}'. "
+            "Pass -DFEETECH_DRIVER_DIR=<path-to-feetech_scs_ros2_control>.")
 endif ()
-message(STATUS "feetech_servo_ros2_control: ${FEETECH_DRIVER_DIR}")
+message(STATUS "feetech_scs_ros2_control: ${FEETECH_DRIVER_DIR}")
 
 # 驱动核心源文件（无 ROS 依赖），编译为本工程的静态库。
 add_library(feetech_scs_core STATIC

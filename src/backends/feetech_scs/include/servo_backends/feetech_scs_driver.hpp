@@ -3,8 +3,8 @@
 #include <map>
 #include <memory>
 
-#include "feetech_servo_ros2_control/scs_protocol.hpp"
-#include "feetech_servo_ros2_control/scs_serial_port.hpp"
+#include "feetech_scs_ros2_control/scs_protocol.hpp"
+#include "feetech_scs_ros2_control/scs_serial_port.hpp"
 #include "servo_core/driver.hpp"
 
 namespace servo_backends {
@@ -61,10 +61,10 @@ namespace servo_backends {
     private:
         [[nodiscard]] const ServoConfig& config_for(ServoId id) const;
         static ServoInfo to_info(ServoId id,
-                                 const feetech_servo_ros2_control::ScsServoIdentity& identity);
+                                 const feetech_scs_ros2_control::ScsServoIdentity& identity);
 
-        feetech_servo_ros2_control::ScsSerialPort port_;
-        std::unique_ptr<feetech_servo_ros2_control::ScsProtocol> protocol_;
+        feetech_scs_ros2_control::ScsSerialPort port_;
+        std::unique_ptr<feetech_scs_ros2_control::ScsProtocol> protocol_;
         std::map<ServoId, ServoConfig> configs_;
         TraceHook trace_hook_;
     };

@@ -11,8 +11,8 @@
 namespace servo_backends {
     namespace {
 
-        using feetech_servo_ros2_control::kModelSc215;
-        using feetech_servo_ros2_control::test::FakeScsBus;
+        using feetech_scs_ros2_control::kModelSc215;
+        using feetech_scs_ros2_control::test::FakeScsBus;
         using servo_core::ServoConfig;
 
         constexpr double kPi = 3.14159265358979323846;
@@ -109,7 +109,7 @@ namespace servo_backends {
 
             ASSERT_TRUE(driver.sync_write_goals({1, 2}, {200, 300}, 0, {500, 600}));
             // SYNC WRITE 无应答，等待模拟总线消费该帧。
-            ASSERT_TRUE(feetech_servo_ros2_control::test::wait_for([&] {
+            ASSERT_TRUE(feetech_scs_ros2_control::test::wait_for([&] {
                 return bus.present_position(1) == 200 && bus.present_position(2) == 300;
             }));
 
@@ -123,9 +123,9 @@ namespace servo_backends {
             ASSERT_TRUE(driver.open(bus_config(bus.slave_path())));
 
             ASSERT_TRUE(driver.write_param(1, "p_coefficient", 20));
-            EXPECT_EQ(bus.register_value(1, feetech_servo_ros2_control::kRegisterPCoefficient), 20);
+            EXPECT_EQ(bus.register_value(1, feetech_scs_ros2_control::kRegisterPCoefficient), 20);
             EXPECT_FALSE(bus.torque_enabled(1));
-            EXPECT_EQ(bus.register_value(1, feetech_servo_ros2_control::kRegisterEepromLock), 1);
+            EXPECT_EQ(bus.register_value(1, feetech_scs_ros2_control::kRegisterEepromLock), 1);
 
             // 范围外与未知键必须被拒绝。
             EXPECT_FALSE(driver.write_param(1, "max_temperature", 200));

@@ -40,7 +40,7 @@ cmake --build build -j
   `g++-14` / `g++-15` / `g++-16` / `g++`；也可用 `-DCMAKE_CXX_COMPILER`
   或 `CXX=` 显式指定，**不强制要求安装 g++-13**。
 - 驱动源码路径由 `-DFEETECH_DRIVER_DIR=<path>` 指定；未配置时默认从
-  上一级目录寻找 `feetech_servo_ros2_control`。
+  上一级目录寻找 `feetech_scs_ros2_control`。
 - 驱动中无 ROS 依赖的核心源文件会被编译为本工程的 `feetech_scs_core`
   静态库，整个上位机不依赖 ROS。
 
@@ -65,7 +65,7 @@ ctest --test-dir build --output-on-failure
 
 ```
 src/servo_core/       中间层：IServoDriver、中立类型、DriverRegistry、BusSession
-src/backends/feetech_scs/  飞特 SCS 后端（适配 feetech_servo_ros2_control）
+src/backends/feetech_scs/  飞特 SCS 后端（适配 feetech_scs_ros2_control）
 src/app/              Qt6 GUI：主窗口、各面板、主题、参数备份
 tools/servo_smoke.cpp 无 GUI 冒烟命令行工具
 test/                 gtest 单元/集成测试

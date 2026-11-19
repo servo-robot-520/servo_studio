@@ -20,9 +20,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "feetech_servo_ros2_control/scs_register_map.hpp"
+#include "feetech_scs_ros2_control/scs_register_map.hpp"
 
-namespace feetech_servo_ros2_control::test {
+namespace feetech_scs_ros2_control::test {
 
     /// @brief 轮询谓词，直到其为真或超时。
     /// @param predicate 待轮询的条件。
@@ -376,4 +376,4 @@ namespace feetech_servo_ros2_control::test {
         std::thread thread_;
     };
 
-} // namespace feetech_servo_ros2_control::test
+} // namespace feetech_scs_ros2_control::test

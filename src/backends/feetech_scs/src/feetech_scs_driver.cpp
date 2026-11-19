@@ -4,14 +4,14 @@
 #include <array>
 #include <cmath>
 
-#include "feetech_servo_ros2_control/scs_params.hpp"
-#include "feetech_servo_ros2_control/scs_register_map.hpp"
+#include "feetech_scs_ros2_control/scs_params.hpp"
+#include "feetech_scs_ros2_control/scs_register_map.hpp"
 #include "servo_core/registry.hpp"
 
 namespace servo_backends {
     namespace {
 
-        namespace scs = feetech_servo_ros2_control;
+        namespace scs = feetech_scs_ros2_control;
         namespace core = servo_core;
 
         // SCS 系列最大有效角度（内存表“最大有效角度”），机械行程上限。
