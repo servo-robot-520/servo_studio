@@ -20,16 +20,19 @@
 - **安全**：全局"全部松扭矩"急停、危险写入二次确认、命令钳位
 - **UBTECH 协议（非官方文档）**：按协议能力针对性出组件——转动（角度 0–240° / 运动时间 / 锁定时间）、强制中止（失电）、角度回读（⚠回读后失电，仅手动单次、禁止轮询）、角度偏移校准（⅓°，掉电清零）、修改 ID、固件版本；无连续遥测，监控列按遥测能力全通道显示 "--"（操作面板为协议专属）
 - **UBTECH-LQL（飞特协议兼容固件）**：支持 liqiulong123 为 UBTECH 拆机舵机重新编写的飞特 SCS 协议兼容固件
-  （原项目：[gitee.com/liqiulong123/ubtech_servo_firmware](https://gitee.com/liqiulong123/ubtech_servo_firmware.git)，含 SAMD10 / Mega8 两种硬件）——
-  帧/指令/控制表骨架与飞特一致，按 12 位几何（0–4095 counts）换算与播种钳位；SAMD10 指令齐全（含预存下发），
-  Mega8 速度/负载按补码解码、无传感器通道显示 "--"；扭矩两态（无阻尼档）；应答错误位（欠压/过压/过热/堵转）
-  宽容处理，经 `last_error` 参数与帧跟踪可见
+  （原项目：[gitee.com/liqiulong123/ubtech_servo_firmware](https://gitee.com/liqiulong123/ubtech_servo_firmware.git)，含 SAMD10 / Mega8 两种硬件）—— 帧/指令/控制表骨架与飞特一致，按 12 位几何（0–4095 counts）换算与播种钳位；SAMD10 指令齐全（含预存下发），Mega8 速度/负载按补码解码、无传感器通道显示 "--"；扭矩两态（无阻尼档）；应答错误位（欠压/过压/过热/堵转）宽容处理，经 `last_error` 参数与帧跟踪可见
 
 ## 构建
 
 本工程是**独立 CMake 项目**，可单独构建，无需 ROS 环境。
 
 依赖：CMake ≥ 3.22、Qt 6（Widgets、Charts）、任意支持 C++20 的 GCC（推荐 13 及以上；测试另需 GTest，可用 `-DBUILD_TESTING=OFF` 关闭）。
+
+飞特协议驱动库需**单独克隆**（构建必需，默认从上一级目录 `../feetech_scs_ros2_control` 查找）：
+
+```bash
+git clone https://github.com/servo-robot-520/feetech_scs_ros2_control.git ../feetech_scs_ros2_control
+```
 
 ```bash
 # 开发构建（含测试）
@@ -42,7 +45,8 @@ cmake --build build-release -j
 ```
 
 - 编译器自动选择：优先 `g++-13`（约定工具链），未安装时依次回退`g++-14` / `g++-15` / `g++-16` / `g++`；也可用 `-DCMAKE_CXX_COMPILER`或 `CXX=` 显式指定，**不强制要求安装 g++-13**。
-- 驱动源码路径由 `-DFEETECH_DRIVER_DIR=<path>` 指定；未配置时默认从上一级目录寻找 `feetech_scs_ros2_control`。
+- 驱动源码路径由 `-DFEETECH_DRIVER_DIR=<path>` 指定（克隆到其他位置时使用，例如
+  `cmake -S . -B build -DFEETECH_DRIVER_DIR=/path/to/feetech_scs_ros2_control`）。
 - 驱动中无 ROS 依赖的核心源文件会被编译为本工程的 `feetech_scs_core`静态库，整个上位机不依赖 ROS。
 
 ## 测试
@@ -70,9 +74,48 @@ ctest --test-dir build --output-on-failure
 ```
 src/servo_core/       中间层：IServoDriver、中立类型、DriverRegistry、BusSession
 src/backends/feetech_scs/  飞特 SCS 后端（适配 feetech_scs_ros2_control）
-src/backends/ubtech/  UBTECH 后端（非官方协议，帧层自研，无外部依赖）
-src/backends/ubtech_liqiulong123/  UBTECH-LQL 后端（MicroDuck 固件，作者 liqiulong123）
+src/backends/ubtech/  UBTECH 后端（非官方协议）
+src/backends/ubtech_liqiulong123/  UBTECH-LQL 后端（作者 liqiulong123）
 src/app/              Qt6 GUI：主窗口、各面板、主题、参数备份
 tools/servo_smoke.cpp 无 GUI 冒烟命令行工具
 test/                 gtest 单元/集成测试
 ```
+
+## 扩展：增加新的舵机支持（开发速览）
+
+新增一个协议后端**不需要改 UI**：协议下拉自动出现新后端，监控/状态表/参数工作台/命令区全部由驱动声明驱动（遥测能力 + 参数描述表 + 能力标志）。
+
+**① 实现后端**：新建 `src/backends/<vendor>/`（`include/servo_backends/xxx_driver.hpp` +`src/xxx_driver.cpp`），实现 `servo_core::IServoDriver`
+（契约见 `src/servo_core/include/servo_core/driver.hpp`）。必选纯虚方法：
+
+| 类别 | 方法 |
+|---|---|
+| 总线 | `open` / `close` / `is_open` |
+| 识别 | `scan` / `identify`（返回 `ServoInfo`：型号、固件版本、`defaults` 默认换算几何、`channels` 遥测通道） |
+| 运动 | `write_goal` / `sync_write_goals` / `set_torque` / `set_servo_config` |
+| 参数 | `parameters`（描述表驱动寄存器工作台与备份）/ `read_param` / `write_param` |
+| 原始访问 | `read_registers` / `write_registers`（不支持可返回明确错误） |
+
+可选覆写（有默认实现）：
+
+- `telemetry_channels(id)`——按舵机声明支持的遥测通道；**不支持的通道 `read_state` 填 NaN**，界面自动显示 "--"、图表断点（例：UBTECH 拆机协议全通道不支持；Mega8 无电压/温度/电流）
+- `capabilities()`——总线级能力：`torque_damping`（扭矩是否三态）、`polling_safe`（`read_state` 是否可用于自动轮询，有副作用如"回读即失电"必须置 false）、`uses_protocol_panel`（是否使用协议专属操作面板而非通用检查器）
+- `supports_staged_write` / `stage_goal` / `trigger_staged`（预存下发）
+- `set_trace_hook`（帧级 hex 日志接入）
+
+约定：错误信息用英文；驱动无需线程安全（`BusSession` 负责串行化）；多字节量按协议字节序处理。
+
+**② 注册**：`src/app/main.cpp` 中调用 `XxxDriver::register_driver()`（内部 `DriverRegistry::instance().add("<名字>", ...)`）；`CMakeLists.txt` 仿
+`servo_backend_ubtech_liqiulong123` 加 OBJECT 库并链入 `servo_studio`。
+
+**③ 测试**：仿 `test/fake_*.hpp` 用 PTY 写假总线（按协议应答），配 gtest 用例（帧编码、钳位、超时、解码、参数校验）；`CMakeLists.txt` 加 `add_executable` + `add_test`。
+
+**参考实现**：
+
+| 后端 | 形态 | 可参考点 |
+|---|---|---|
+| `feetech_scs` | 包装外部协议库 | 参数描述表透传、EEPROM 安全写流程、SYNC/预存 |
+| `ubtech` | 实现非官方协议的帧层 | 能力声明（全通道不支持/禁轮询）、协议专属面板 `UbtechPanel`、单次回读 |
+| `ubtech_liqiulong123` | SCS 兼容 + 双变体 | 按版本识别变体、`ServoInfo.channels` 按型号收窄、错误位宽容、参数表 34 项 |
+
+若需要协议专属操作面板（功能面与通用检查器差异大）：仿 `src/app/panels/ubtech_panel.*`增加面板，在 `capabilities().uses_protocol_panel` 声明，并在 `MainWindow` 中按信号接线（面板切换由能力驱动，无需判断协议名）。
