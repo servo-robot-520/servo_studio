@@ -37,7 +37,7 @@ namespace app {
         /// 追加一批轮询状态；仅处理当前监控对象。
         void appendStates(const QString& port, const QVector<servo_core::ServoState>& states);
 
-    protected:
+    public:
         /// 交互：滚轮水平缩放、右键+滚轮水平位移、双击恢复默认窗口。
         bool eventFilter(QObject* watched, QEvent* event) override;
 

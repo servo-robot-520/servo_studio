@@ -2,7 +2,6 @@
 
 #include <QComboBox>
 
-#include <algorithm>
 #include <QFileDialog>
 #include <QLabel>
 #include <QPushButton>
@@ -10,6 +9,7 @@
 #include <QTime>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <algorithm>
 
 namespace app {
 
@@ -87,10 +87,10 @@ namespace app {
         while (entries_.size() > kMaxEntries) {
             // trace 不缓存、优先淘汰；无 trace 时淘汰超出缓存配额的最旧条目，
             // 其余级别保证保留最近 kCachedPerLevel 条——切换级别仍可见。
-            auto victim = std::find_if(entries_.begin(), entries_.end(),
-                                       [](const Entry& entry) { return entry.level == "trace"; });
+            auto victim = std::ranges::find_if(entries_,
+                                               [](const Entry& entry) { return entry.level == "trace"; });
             if (victim == entries_.end()) {
-                victim = std::find_if(entries_.begin(), entries_.end(), [this](const Entry& entry) {
+                victim = std::ranges::find_if(entries_, [this](const Entry& entry) {
                     return level_counts_[entry.level] > kCachedPerLevel;
                 });
             }

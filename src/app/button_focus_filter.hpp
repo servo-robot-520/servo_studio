@@ -17,7 +17,6 @@ namespace app {
     public:
         using QObject::QObject;
 
-    protected:
         bool eventFilter(QObject* watched, QEvent* event) override {
             if (event->type() == QEvent::MouseButtonRelease &&
                 qobject_cast<QAbstractButton*>(watched) != nullptr) {

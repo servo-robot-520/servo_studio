@@ -29,7 +29,7 @@ namespace app {
     MainWindow::MainWindow(QWidget* parent) :
         QMainWindow(parent) {
         setWindowTitle(QStringLiteral("servo_studio v%1")
-                            .arg(QStringLiteral(SERVO_STUDIO_VERSION)));
+            .arg(QStringLiteral(SERVO_STUDIO_VERSION)));
         resize(1440, 820);
 
         auto* central = new QWidget(this);
@@ -269,7 +269,7 @@ namespace app {
                     }
                     // 播种状态表行：先全通道 "--"，有遥测后随轮询/回读刷新。
                     QVector<servo_core::ServoState> seeded_rows;
-                    const double nan = std::numeric_limits<double>::quiet_NaN();
+                    constexpr double nan = std::numeric_limits<double>::quiet_NaN();
                     for (const auto& info : infos) {
                         servo_core::ServoState blank;
                         blank.id = info.id;
@@ -288,8 +288,8 @@ namespace app {
                     connection_panel_->setScanning(false);
                     refreshBatchDialog();
                     log("info", QStringLiteral("Scan on %1 finished: %2 servo(s) found")
-                                    .arg(bus_port)
-                                    .arg(infos.size()));
+                                .arg(bus_port)
+                                .arg(infos.size()));
                     statusBar()->showMessage(
                         tr("%1：扫描结束，发现 %2 个舵机").arg(bus_port).arg(infos.size()), 10000);
                 });
@@ -317,9 +317,9 @@ namespace app {
                        const bool success, const QString& error) {
                     if (success) {
                         log("info", QStringLiteral("Restored %1 parameter(s) on servo %2 (%3)")
-                                        .arg(written)
-                                        .arg(id)
-                                        .arg(bus_port));
+                                    .arg(written)
+                                    .arg(id)
+                                    .arg(bus_port));
                         if (const auto it = buses_.find(bus_port); it != buses_.end()) {
                             it->second.bridge->readParameters(bus_port,
                                                               static_cast<servo_core::ServoId>(id));
@@ -411,7 +411,7 @@ namespace app {
         it->second.bridge->setPolling(std_ids, poll_hz_);
     }
 
-    void MainWindow::applyProtocolPanel(const bool uses_protocol_panel) {
+    void MainWindow::applyProtocolPanel(const bool uses_protocol_panel) const {
         // 操作面板按协议能力二选一；监控列常显，不支持的通道由遥测能力掩码为 "--"。
         if (uses_protocol_panel) {
             inspector_panel_->hide();
@@ -423,8 +423,7 @@ namespace app {
         }
     }
 
-    servo_core::DriverCapabilities MainWindow::capabilitiesFor(
-        const QString& driver_name) const {
+    servo_core::DriverCapabilities MainWindow::capabilitiesFor(const QString& driver_name) {
         const auto driver =
             servo_core::DriverRegistry::instance().create(driver_name.toStdString());
         if (!driver) {
@@ -445,7 +444,7 @@ namespace app {
             }
         }
         servo_core::ServoState masked = state;
-        const double nan = std::numeric_limits<double>::quiet_NaN();
+        constexpr double nan = std::numeric_limits<double>::quiet_NaN();
         if (!channels.position) {
             masked.position_ticks = nan;
             masked.position_deg = nan;
@@ -469,7 +468,7 @@ namespace app {
         return masked;
     }
 
-    void MainWindow::onBackendChanged(const QString& backend) {
+    void MainWindow::onBackendChanged(const QString& backend) const {
         // 连接前即时预览协议界面（协议下拉一变就切面板）；连接期间下拉锁定，
         // 选中舵机后仍以其所属总线协议为准（onServoSelected 重新应用）。
         const auto caps = capabilitiesFor(backend);
@@ -482,9 +481,9 @@ namespace app {
         servo_core::ServoId id = 0;
         // 信号源面板优先：另一面板的旧选中不覆盖本次点击。
         const bool found = sender() == status_table_
-                               ? status_table_->selectedServo(&port, &id)
-                               : (device_tree_->selectedServo(&port, &id) ||
-                                  status_table_->selectedServo(&port, &id));
+            ? status_table_->selectedServo(&port, &id)
+            : (device_tree_->selectedServo(&port, &id) ||
+                status_table_->selectedServo(&port, &id));
         if (!found) {
             return;
         }
@@ -613,8 +612,8 @@ namespace app {
         });
         static const char* kModes[] = {"free", "locked", "damping"};
         log("info", QStringLiteral("Torque set to %1 on servo %2")
-                        .arg(mode >= 0 && mode <= 2 ? kModes[mode] : "?")
-                        .arg(id));
+                    .arg(mode >= 0 && mode <= 2 ? kModes[mode] : "?")
+                    .arg(id));
     }
 
     void MainWindow::handleUbtechMove(const QString& port, const servo_core::ServoId id,
@@ -629,9 +628,9 @@ namespace app {
                 return driver.write_goal(id, angleDeg, moveMs, 0, 0, lockMs);
             });
         statusBar()->showMessage(tr("已下发目标 → %1°（运动 %2ms，锁定 %3ms）")
-                                     .arg(angleDeg)
-                                     .arg(moveMs)
-                                     .arg(lockMs),
+                                 .arg(angleDeg)
+                                 .arg(moveMs)
+                                 .arg(lockMs),
                                  4000);
     }
 
@@ -680,10 +679,10 @@ namespace app {
         // ID / 波特率专属流程：确认 → 写入 → 恢复访问（重扫/重连）。
         if (key == "id") {
             if (QMessageBox::warning(
-                    this, tr("修改 ID"),
-                    tr("修改 ID 后舵机将不再响应旧 ID，写错需要重新扫描恢复。\n确定写入 ID=%1 ？")
-                        .arg(value),
-                    QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
+                this, tr("修改 ID"),
+                tr("修改 ID 后舵机将不再响应旧 ID，写错需要重新扫描恢复。\n确定写入 ID=%1 ？")
+                .arg(value),
+                QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
                 return;
             }
             it->second.bridge->submit(
@@ -708,9 +707,9 @@ namespace app {
         if (key == "baud_rate") {
             const int new_baud = valueText.toInt();
             if (QMessageBox::warning(
-                    this, tr("修改波特率"),
-                    tr("修改波特率后将以 %1 重新连接总线。\n确定写入？").arg(new_baud),
-                    QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
+                this, tr("修改波特率"),
+                tr("修改波特率后将以 %1 重新连接总线。\n确定写入？").arg(new_baud),
+                QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
                 return;
             }
             it->second.bridge->submit(
@@ -728,11 +727,12 @@ namespace app {
                             log("info", "Baud rate changed, reconnecting " + port);
                             const int timeout =
                                 buses_.contains(port)
-                                    ? buses_[port].session->config().response_timeout_ms
-                                    : 10;
+                                ? buses_[port].session->config().response_timeout_ms
+                                : 10;
                             const QString backend =
-                                buses_.contains(port) ? buses_[port].driver_name
-                                                        : QString("feetech_scs");
+                                buses_.contains(port)
+                                ? buses_[port].driver_name
+                                : QString("feetech_scs");
                             disconnectBus(port);
                             connectBus(backend, port, new_baud, timeout);
                             scanBus(port);
@@ -745,10 +745,10 @@ namespace app {
         // 通用参数写入同样需要确认。
         if (QMessageBox::question(this, tr("写入参数"),
                                   tr("确定将 %1=%2 写入 %3 的舵机 %4？")
-                                      .arg(key)
-                                      .arg(value)
-                                      .arg(port)
-                                      .arg(id),
+                                  .arg(key)
+                                  .arg(value)
+                                  .arg(port)
+                                  .arg(id),
                                   QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
             return;
         }
@@ -763,9 +763,9 @@ namespace app {
             return;
         }
         if (QMessageBox::question(
-                this, tr("批量写入参数"),
-                tr("将 %1=%2 写入 %3 的全部舵机？").arg(key).arg(value).arg(port),
-                QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
+            this, tr("批量写入参数"),
+            tr("将 %1=%2 写入 %3 的全部舵机？").arg(key).arg(value).arg(port),
+            QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
             return;
         }
         const auto ids = device_tree_->servoIds(port);
@@ -795,10 +795,10 @@ namespace app {
         }
         inspector_panel_->updateConfig(config);
         log("info", QStringLiteral("Servo %1 config updated: range=%2 deg, clamp=[%3, %4]")
-                        .arg(id)
-                        .arg(rangeDeg)
-                        .arg(minTicks)
-                        .arg(maxTicks));
+                    .arg(id)
+                    .arg(rangeDeg)
+                    .arg(minTicks)
+                    .arg(maxTicks));
     }
 
     void MainWindow::refreshBatchDialog() {
@@ -843,8 +843,8 @@ namespace app {
                 });
         }
         log("info", QStringLiteral("Batch sync dispatched %1 goal(s) on %2 bus(es)")
-                        .arg(goals.size())
-                        .arg(by_bus.size()));
+                    .arg(goals.size())
+                    .arg(by_bus.size()));
     }
 
     void MainWindow::handleBatchStage(const QVector<BatchGoal>& goals) {
@@ -876,25 +876,29 @@ namespace app {
                     return servo_core::Result::success();
                 },
                 [this, progress, succeeded, staged_count = static_cast<int>(bus_goals.size())](
-                    const bool success, const QString& error) {
+                const bool success, const QString& error) {
                     if (success) {
                         *succeeded += staged_count;
                     }
                     else {
-                        QMetaObject::invokeMethod(this, [this, error] { log("error", error); },
+                        QMetaObject::invokeMethod(this, [this, error] {
+                                                      log("error", error);
+                                                  },
                                                   Qt::QueuedConnection);
                     }
                     if (++progress->first == progress->second) {
                         const int staged = *succeeded;
                         QMetaObject::invokeMethod(
-                            this, [this, staged] { batch_dialog_->markStaged(staged); },
+                            this, [this, staged] {
+                                batch_dialog_->markStaged(staged);
+                            },
                             Qt::QueuedConnection);
                     }
                 });
         }
         log("info", QStringLiteral("Batch staging %1 goal(s) on %2 bus(es)")
-                        .arg(goals.size())
-                        .arg(by_bus.size()));
+                    .arg(goals.size())
+                    .arg(by_bus.size()));
     }
 
     void MainWindow::handleBatchTrigger() {
@@ -902,15 +906,21 @@ namespace app {
         for (const auto& entry : buses_ | std::views::values) {
             ++buses_triggered;
             entry.bridge->submit(
-                [](servo_core::IServoDriver& driver) { return driver.trigger_staged(); },
+                [](servo_core::IServoDriver& driver) {
+                    return driver.trigger_staged();
+                },
                 [this](const bool success, const QString& error) {
                     if (success) {
                         QMetaObject::invokeMethod(
-                            this, [this] { batch_dialog_->markTriggered(); },
+                            this, [this] {
+                                batch_dialog_->markTriggered();
+                            },
                             Qt::QueuedConnection);
                     }
                     else {
-                        QMetaObject::invokeMethod(this, [this, error] { log("error", error); },
+                        QMetaObject::invokeMethod(this, [this, error] {
+                                                      log("error", error);
+                                                  },
                                                   Qt::QueuedConnection);
                     }
                 });
@@ -970,12 +980,12 @@ namespace app {
             return;
         }
         if (QMessageBox::question(
-                this, tr("恢复参数"),
-                tr("将 %1 个参数写入 %2 的舵机 %3？\n（ID 与波特率不会被恢复）")
-                    .arg(params.size())
-                    .arg(port)
-                    .arg(id),
-                QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
+            this, tr("恢复参数"),
+            tr("将 %1 个参数写入 %2 的舵机 %3？\n（ID 与波特率不会被恢复）")
+            .arg(params.size())
+            .arg(port)
+            .arg(id),
+            QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
             return;
         }
         it->second.bridge->restoreParameters(port, id, params);

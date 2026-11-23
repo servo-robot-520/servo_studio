@@ -3,8 +3,6 @@
 #include <cmath>
 
 #include <QCheckBox>
-#include <QEvent>
-#include <QWheelEvent>
 #include <QGridLayout>
 #include <QLabel>
 #include <QVBoxLayout>

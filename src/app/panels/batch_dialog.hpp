@@ -62,6 +62,9 @@ namespace app {
         /// 触发完成：清空预存标记。
         void markTriggered();
 
+    protected:
+        bool eventFilter(QObject* watched, QEvent* event) override;
+
     private:
         struct Row {
             QString port;
@@ -80,9 +83,8 @@ namespace app {
         void resizeToTable();
         void beginEdit(int row, int column);
         void commitEditor();
-        void updateRowDisplay(int row);
-        void updateTriggerLabel();
-        bool eventFilter(QObject* watched, QEvent* event) override;
+        void updateRowDisplay(int row) const;
+        void updateTriggerLabel() const;
 
         QTableWidget* table_;
         QPushButton* refresh_button_;
@@ -98,4 +100,5 @@ namespace app {
 } // namespace app
 
 Q_DECLARE_METATYPE(app::BatchGoal)
+
 Q_DECLARE_METATYPE(QVector<app::BatchGoal>)

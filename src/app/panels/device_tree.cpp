@@ -105,7 +105,7 @@ namespace app {
     }
 
     void DeviceTree::selectServo(const QString& port, const servo_core::ServoId id) {
-        QTreeWidgetItem* bus = busItem(port);
+        const QTreeWidgetItem* bus = busItem(port);
         if (bus == nullptr) {
             return;
         }

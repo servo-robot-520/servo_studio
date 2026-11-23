@@ -52,7 +52,7 @@ namespace app {
                               int moveMs, int lockMs);
         void handleUbtechStop(const QString& port, servo_core::ServoId id);
         void handleUbtechReadAngle(const QString& port, servo_core::ServoId id);
-        void onBackendChanged(const QString& backend);
+        void onBackendChanged(const QString& backend) const;
         void openParamsDialog();
         void handleParamWrite(const QString& port, servo_core::ServoId id, const QString& key,
                               int value, const QString& valueText);
@@ -78,16 +78,13 @@ namespace app {
         void log(const QString& level, const QString& message) const;
         void applyPolling(const QString& port);
         /// 操作面板按协议能力二选一显示（协议专属面板 / 通用检查器）。
-        void applyProtocolPanel(bool uses_protocol_panel);
+        void applyProtocolPanel(bool uses_protocol_panel) const;
         /// 按驱动名查询总线级能力（临时实例，无 I/O；界面不做协议名分支）。
-        [[nodiscard]] servo_core::DriverCapabilities capabilitiesFor(
-            const QString& driver_name) const;
+        static servo_core::DriverCapabilities capabilitiesFor(const QString& driver_name);
         /// 按遥测能力掩码状态：不支持的通道填 NaN（显示 "--"、图表断点）。
-        [[nodiscard]] servo_core::ServoState maskTelemetry(
-            const QString& port, const servo_core::ServoState& state) const;
+        [[nodiscard]] servo_core::ServoState maskTelemetry(const QString& port, const servo_core::ServoState& state) const;
         void refreshBatchDialog();
-        [[nodiscard]] servo_core::ServoConfig configFor(const QString& port,
-                                                        servo_core::ServoId id) const;
+        [[nodiscard]] servo_core::ServoConfig configFor(const QString& port, servo_core::ServoId id) const;
 
         ConnectionPanel* connection_panel_;
         DeviceTree* device_tree_;

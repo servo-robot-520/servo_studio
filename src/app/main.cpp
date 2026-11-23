@@ -1,6 +1,5 @@
 // servo_studio 桌面上位机入口。
 #include <QFile>
-#include <QIcon>
 
 #include "app/button_focus_filter.hpp"
 #include "app/main_window.hpp"

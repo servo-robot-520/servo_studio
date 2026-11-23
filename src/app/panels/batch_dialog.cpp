@@ -3,7 +3,6 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QEvent>
-#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
 #include <QPushButton>
@@ -110,15 +109,15 @@ namespace app {
         // 保留同 id 行的已编辑值。
         std::vector<Row> previous;
         previous.swap(rows_);
-        for (const auto& servo : servos) {
+        for (const auto& [port, id, config] : servos) {
             Row row;
-            row.port = servo.port;
-            row.id = servo.id;
-            row.config = servo.config;
+            row.port = port;
+            row.id = id;
+            row.config = config;
             for (const auto& old : previous) {
-                if (old.port == servo.port && old.id == servo.id) {
+                if (old.port == port && old.id == id) {
                     row = old;
-                    row.config = servo.config;
+                    row.config = config;
                     break;
                 }
             }
@@ -167,7 +166,7 @@ namespace app {
         resize(table_width, height());
     }
 
-    void BatchDialog::updateRowDisplay(const int row) {
+    void BatchDialog::updateRowDisplay(const int row) const {
         const Row& data = rows_[static_cast<size_t>(row)];
         auto set_text = [this, row](const int column, const QString& text) {
             if (auto* item = table_->item(row, column)) {
@@ -198,7 +197,7 @@ namespace app {
         if (row < 0 || row >= static_cast<int>(rows_.size())) {
             return;
         }
-        Row& data = rows_[static_cast<size_t>(row)];
+        const Row& data = rows_[static_cast<size_t>(row)];
         const int current =
             column == kColumnGoal ? (data.has_goal ? data.goal : 0)
                                   : (column == kColumnSpeed ? data.speed : data.timeMs);
@@ -255,7 +254,7 @@ namespace app {
         editor->deleteLater();
         updateRowDisplay(row);
         // 同步\"参与\"复选框（编辑目标自动勾选）。
-        if (auto* holder = table_->cellWidget(row, kColumnInclude)) {
+        if (const auto* holder = table_->cellWidget(row, kColumnInclude)) {
             if (auto* box = holder->findChild<QCheckBox*>()) {
                 box->setChecked(data.include);
             }
@@ -263,7 +262,7 @@ namespace app {
         updateTriggerLabel();
     }
 
-    void BatchDialog::updateTriggerLabel() {
+    void BatchDialog::updateTriggerLabel() const {
         int participating = 0;
         int staged = 0;
         for (const auto& row : rows_) {
@@ -283,7 +282,7 @@ namespace app {
             if (!row.include || !row.has_goal) {
                 continue;
             }
-            goals.push_back({row.port, row.id, row.goal, row.timeMs, row.speed});
+            goals.push_back({.port = row.port, .id = row.id, .ticks = row.goal, .timeMs = row.timeMs, .speed = row.speed});
         }
         return goals;
     }
@@ -308,11 +307,11 @@ namespace app {
 
     bool BatchDialog::eventFilter(QObject* watched, QEvent* event) {
         if (event->type() == QEvent::Wheel && watched->isWidgetType() &&
-            !static_cast<QWidget*>(watched)->hasFocus()) {
+            !dynamic_cast<QWidget*>(watched)->hasFocus()) {
             return true;
         }
         if (event->type() == QEvent::FocusOut) {
-            QWidget* next = QApplication::focusWidget();
+            const QWidget* next = QApplication::focusWidget();
             const bool left_table = next == nullptr || !table_->isAncestorOf(next);
             if (watched == table_) {
                 if (left_table) {
@@ -321,7 +320,7 @@ namespace app {
                 }
             }
             else if (watched->isWidgetType() &&
-                     table_->isAncestorOf(static_cast<QWidget*>(watched))) {
+                     table_->isAncestorOf(dynamic_cast<QWidget*>(watched))) {
                 commitEditor();
                 if (left_table) {
                     table_->clearSelection();
